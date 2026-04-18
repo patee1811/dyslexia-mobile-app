@@ -4,11 +4,11 @@ import { colors } from '../theme/colors';
 import type { AppTab } from '../types';
 
 const tabs: { key: AppTab; label: string; shortLabel: string }[] = [
-  { key: 'home', label: 'Hom nay', shortLabel: '01' },
-  { key: 'practice', label: 'Luyen doc', shortLabel: '02' },
-  { key: 'caregiver', label: 'Theo doi', shortLabel: '03' },
+  { key: 'home', label: 'Hôm nay', shortLabel: '01' },
+  { key: 'practice', label: 'Luyện đọc', shortLabel: '02' },
+  { key: 'caregiver', label: 'Theo dõi', shortLabel: '03' },
   { key: 'hci', label: 'HCI', shortLabel: '04' },
-  { key: 'settings', label: 'Settings', shortLabel: '05' },
+  { key: 'settings', label: 'Cài đặt', shortLabel: '05' },
 ];
 
 type Props = {

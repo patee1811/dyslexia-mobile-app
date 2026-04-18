@@ -14,14 +14,14 @@ const voiceOptions: {
   {
     id: 'vi-VN-HoaiMyNeural',
     label: 'HoaiMy',
-    note: 'Giong nu, de nghe va hop cho bai doc mau co nhip cham.',
-    sample: 'Chao con, chung ta cung doc cham tung cau mot nhe.',
+    note: 'Giọng nữ, dễ nghe và hợp cho bài đọc mẫu có nhịp chậm.',
+    sample: 'Chào con, chúng ta cùng đọc chậm từng câu một nhé.',
   },
   {
     id: 'vi-VN-NamMinhNeural',
     label: 'NamMinh',
-    note: 'Giong nam, ro nhac va on dinh cho huynh luyen doc dai hon.',
-    sample: 'Con hay nhin ky tung tu, sau do doc ro va deu nhip.',
+    note: 'Giọng nam, rõ nhạc và ổn định cho buổi luyện đọc dài hơn.',
+    sample: 'Con hãy nhìn kỹ từng từ, sau đó đọc rõ và đều nhịp.',
   },
 ];
 
@@ -33,22 +33,22 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={{ backgroundColor: currentTheme.background }} contentContainerStyle={styles.content}>
       <SectionCard
-        title="Settings"
-        subtitle="Tuy chon nay duoc luu rieng theo tung ho so. Ban co the doi nhanh giua hai giong Azure ma khong can sua `.env`."
+        title="Cài đặt"
+        subtitle="Tùy chọn này được lưu riêng theo từng hồ sơ. Bạn có thể đổi nhanh giữa hai giọng Azure mà không cần sửa `.env`."
         style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}
       >
         <Text style={[styles.heading, { color: currentTheme.text }]}>{activeRecord.profile.name}</Text>
         <Text style={[styles.note, { color: currentTheme.subtext }]}>
-          Trang thai hien tai: {speechState.voiceLabel ?? 'Chua phat audio'}.
+          Trạng thái hiện tại: {speechState.voiceLabel ?? 'Chưa phát audio'}.
         </Text>
         <Text style={[styles.note, { color: usingAzure ? currentTheme.accent : currentTheme.subtext }]}>
           {usingAzure
-            ? 'Azure Neural TTS dang duoc uu tien.'
-            : 'Neu chua cau hinh Azure hoac loi mang, app se fallback sang system TTS.'}
+            ? 'Azure Neural TTS đang được ưu tiên.'
+            : 'Nếu chưa cấu hình Azure hoặc lỗi mạng, app sẽ fallback sang system TTS.'}
         </Text>
       </SectionCard>
 
-      <SectionCard title="Chon giong Azure" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
+      <SectionCard title="Chọn giọng Azure" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
         <View style={styles.voiceList}>
           {voiceOptions.map((voice) => {
             const active = voice.id === selectedVoice;
@@ -80,8 +80,8 @@ export default function SettingsScreen() {
                   />
                 </Pressable>
                 <View style={styles.actions}>
-                  <PrimaryButton label="Chon giong nay" onPress={() => setAzureVoice(voice.id)} secondary compact />
-                  <PrimaryButton label="Nghe thu" onPress={() => speakText(voice.sample, 'sentence')} compact />
+                  <PrimaryButton label="Chọn giọng này" onPress={() => setAzureVoice(voice.id)} secondary compact />
+                  <PrimaryButton label="Nghe thử" onPress={() => speakText(voice.sample, 'sentence')} compact />
                 </View>
               </View>
             );
@@ -89,18 +89,18 @@ export default function SettingsScreen() {
         </View>
       </SectionCard>
 
-      <SectionCard title="Mau test nhanh" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
+      <SectionCard title="Mẫu test nhanh" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
         <Text style={[styles.note, { color: currentTheme.subtext }]}>
-          Dung cac nut duoi day de nghe su khac nhau sau khi chuyen giong.
+          Dùng các nút dưới đây để nghe sự khác nhau sau khi chuyển giọng.
         </Text>
         <View style={styles.actions}>
-          <PrimaryButton label="Nghe tu mau" onPress={() => speakText('thu vien', 'word')} secondary compact />
+          <PrimaryButton label="Nghe từ mẫu" onPress={() => speakText('thư viện', 'word')} secondary compact />
           <PrimaryButton
-            label="Nghe cau mau"
-            onPress={() => speakText('Hom nay con doc cham, ro va tu tin hon hom qua.', 'sentence')}
+            label="Nghe câu mẫu"
+            onPress={() => speakText('Hôm nay con đọc chậm, rõ và tự tin hơn hôm qua.', 'sentence')}
             compact
           />
-          <PrimaryButton label="Dung audio" onPress={() => void stopSpeaking()} secondary compact />
+          <PrimaryButton label="Dừng audio" onPress={() => void stopSpeaking()} secondary compact />
         </View>
       </SectionCard>
     </ScrollView>

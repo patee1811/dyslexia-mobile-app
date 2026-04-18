@@ -1,30 +1,30 @@
 # Dyslexia Reading Coach Mobile
 
-Mobile app ho tro tre roi loan doc luyen doc theo buoi ngan, co luu du lieu that va text-to-speech neural tu dich vu ngoai.
+Ứng dụng di động hỗ trợ trẻ rối loạn đọc luyện đọc theo các buổi ngắn, có lưu dữ liệu thật và dùng neural text-to-speech từ dịch vụ ngoài.
 
-## Muc tieu bai tap lon
+## Mục tiêu bài tập lớn
 
-- Tap trung dung doi tuong: tre can ho tro luyen doc, cung phu huynh va giao vien.
-- Bam quy trinh HCI: persona, scenario, thiet ke, phat trien, usability test.
-- Co co che tuong tac noi bat: adaptive flow + neural TTS + dashboard theo doi.
-- La cong cu ho tro luyen doc, khong phai cong cu chan doan.
+- Tập trung đúng đối tượng: trẻ cần hỗ trợ luyện đọc, cùng phụ huynh và giáo viên.
+- Bám quy trình HCI: persona, scenario, thiết kế, phát triển, usability test.
+- Có cơ chế tương tác nổi bật: adaptive flow + neural TTS + dashboard theo dõi.
+- Là công cụ hỗ trợ luyện đọc, không phải công cụ chẩn đoán.
 
-## Tinh nang chinh
+## Tính năng chính
 
-- Luu du lieu that theo tung ho so (`AsyncStorage`).
-- Nhieu ho so tre, lich su buoi hoc, ghi chu phu huynh, bai doc tu them.
-- Man luyen doc co:
-  - khoi dong tu kho
-  - nghe mau tung tu / tung cau
+- Lưu dữ liệu thật theo từng hồ sơ (`AsyncStorage`).
+- Nhiều hồ sơ trẻ, lịch sử buổi học, ghi chú phụ huynh, bài đọc tự thêm.
+- Màn luyện đọc có:
+  - khởi động từ khó
+  - nghe mẫu từng từ / từng câu
   - focus line + super focus
-  - danh dau tu kho
-  - cau hoi hieu bai
-  - cham nhanh do luu loat + reward
-- Man theo doi co bao cao ngan ngay trong app.
-- Neu cau hinh Azure TTS: uu tien giong neural ben ngoai.
-- Neu thieu key hoac loi mang: fallback ve `expo-speech`.
+  - đánh dấu từ khó
+  - câu hỏi hiểu bài
+  - chấm nhanh độ lưu loát + reward
+- Màn theo dõi có báo cáo ngắn ngay trong app.
+- Nếu cấu hình Azure TTS: ưu tiên giọng neural bên ngoài.
+- Nếu thiếu key hoặc lỗi mạng: fallback về `expo-speech`.
 
-## Cong nghe
+## Công nghệ
 
 - React Native + Expo + TypeScript
 - `@react-native-async-storage/async-storage`
@@ -32,10 +32,10 @@ Mobile app ho tro tre roi loan doc luyen doc theo buoi ngan, co luu du lieu that
 - `expo-file-system`
 - `expo-speech` (fallback)
 
-## Cau hinh Azure Neural TTS
+## Cấu hình Azure Neural TTS
 
-1. Tao file `.env` o thu muc goc project.
-2. Them cac bien:
+1. Tạo file `.env` ở thư mục gốc project.
+2. Thêm các biến:
 
 ```env
 EXPO_PUBLIC_AZURE_SPEECH_KEY=your_key_here
@@ -43,27 +43,27 @@ EXPO_PUBLIC_AZURE_SPEECH_REGION=southeastasia
 EXPO_PUBLIC_AZURE_SPEECH_VOICE=vi-VN-HoaiMyNeural
 ```
 
-3. Khoi dong lai Expo sau khi sua `.env`.
+3. Khởi động lại Expo sau khi sửa `.env`.
 
-### Luu y bao mat
+### Lưu ý bảo mật
 
-Ban demo local co the dat key tren client de di nhanh. Neu deploy that, nen dat key o backend/proxy va goi backend tu app, khong de key tren mobile client.
+Bản demo local có thể đặt key trên client để đi nhanh. Nếu deploy thật, nên đặt key ở backend/proxy và gọi backend từ app, không để key trên mobile client.
 
-## Chay project
+## Chạy project
 
 ```bash
 npm install
 npm run start
 ```
 
-## Kiem tra
+## Kiểm tra
 
 ```bash
 .\node_modules\.bin\tsc.cmd --noEmit
 npm run test:logic
 ```
 
-## Cau truc chinh
+## Cấu trúc chính
 
 ```text
 .
@@ -81,3 +81,9 @@ npm run test:logic
 └─ docs
    └─ hci
 ```
+
+## Ghi chú encoding trên Windows
+
+- Repo này dùng UTF-8 và `LF` làm chuẩn mặc định qua `.editorconfig` và `.gitattributes`.
+- Nếu xem file trong PowerShell, nên đọc bằng `Get-Content -Encoding utf8 <file>`.
+- Nếu terminal vẫn hiển thị sai dấu, kiểm tra lại code page bằng `chcp 65001`.
