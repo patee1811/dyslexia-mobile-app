@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Dyslexia Reading Coach",
+    "slug": "dyslexia-reading-coach",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"],
+    "android": {
+      "package": "com.studentteam.dyslexiareadingcoach"
+    },
+    "ios": {
+      "bundleIdentifier": "com.studentteam.dyslexiareadingcoach"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

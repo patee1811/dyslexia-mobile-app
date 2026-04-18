@@ -1,0 +1,406 @@
+import type {
+  HciChecklistGroup,
+  LearnerRecord,
+  Lesson,
+  PracticePreferences,
+  ThemeOption,
+} from '../types';
+
+export const themeOptions: ThemeOption[] = [
+  {
+    id: 'sun',
+    name: 'Nắng dịu',
+    background: '#F7F1E3',
+    surface: '#FFF9ED',
+    surfaceAlt: '#F2E7C9',
+    accent: '#C76D3A',
+    accentSoft: '#F7D5BC',
+    text: '#3A2A1A',
+    subtext: '#6E5945',
+    border: '#E4D1BE',
+  },
+  {
+    id: 'mint',
+    name: 'Lá non',
+    background: '#EDF6F1',
+    surface: '#F9FFFC',
+    surfaceAlt: '#DDEFE7',
+    accent: '#2E7D66',
+    accentSoft: '#C8E8DC',
+    text: '#17392E',
+    subtext: '#4F6F64',
+    border: '#CFE2D9',
+  },
+  {
+    id: 'sky',
+    name: 'Trời sáng',
+    background: '#EFF5FB',
+    surface: '#FCFDFF',
+    surfaceAlt: '#DCEBFA',
+    accent: '#2F6FB8',
+    accentSoft: '#D3E4FB',
+    text: '#17314F',
+    subtext: '#56708F',
+    border: '#D0DDED',
+  },
+];
+
+export const defaultPreferences: PracticePreferences = {
+  fontScale: 1.08,
+  lineSpacing: 1.28,
+  chunkSize: 1,
+  focusMode: true,
+  superFocus: false,
+  showSyllables: false,
+  themeId: 'sun',
+  readerFont: 'default',
+  letterSpacing: 0.2,
+  azureVoice: 'vi-VN-HoaiMyNeural',
+};
+
+export const baseLessons: Lesson[] = [
+  {
+    id: 'garden-morning',
+    title: 'Vườn nắng buổi sáng',
+    difficulty: 'foundation',
+    topic: 'Thiên nhiên quen thuộc',
+    estimatedMinutes: 8,
+    focusSkill: 'Phân biệt âm đầu và giữ nhịp đọc chậm',
+    coachGoal: 'Nhận ra từ dễ nhầm và đọc trọn câu ngắn mà không bị vội.',
+    warmup: [
+      { word: 'nắng', syllables: 'nă-ng', cue: 'Âm đầu /n/ mềm, đọc ngắn và dứt khoát.', example: 'Nắng chiếu qua cửa sổ.' },
+      { word: 'lá', syllables: 'lá', cue: 'Từ rất ngắn, chú ý dấu sắc.', example: 'Lá rung nhẹ trên cành.' },
+      { word: 'chậm', syllables: 'chậm', cue: 'Giữ môi và lưỡi chậm ở cuối từ.', example: 'Đọc chậm giúp nhìn rõ chữ.' },
+    ],
+    sentences: [
+      'Buổi sáng, An ra vườn khi nắng vừa lên.',
+      'Em nhìn từng chiếc lá và đọc tên các màu thật chậm.',
+      'Khi gặp từ khó, An chạm vào thẻ gợi ý rồi đọc lại một lần nữa.',
+      'Đọc xong, em kể cho mẹ nghe khu vườn hôm nay có gì mới.',
+    ],
+    questions: [
+      {
+        id: 'garden-q1',
+        prompt: 'An làm gì khi gặp từ khó?',
+        options: ['Bỏ qua luôn', 'Chạm vào thẻ gợi ý rồi đọc lại', 'Nhờ mẹ đọc hộ'],
+        answerIndex: 1,
+        explanation: 'Bài đọc nhấn mạnh việc dùng gợi ý rồi đọc lại để tăng tự tin.',
+      },
+      {
+        id: 'garden-q2',
+        prompt: 'Bài đọc diễn ra ở đâu?',
+        options: ['Trong lớp học', 'Ngoài sân chơi', 'Trong khu vườn'],
+        answerIndex: 2,
+        explanation: 'Toàn bộ đoạn văn diễn ra trong khu vườn buổi sáng.',
+      },
+    ],
+    caregiverTip: 'Sau buổi đọc, hỏi trẻ kể lại 1-2 chi tiết thay vì yêu cầu đọc lại toàn bộ đoạn.',
+    createdBy: 'system',
+  },
+  {
+    id: 'paper-boat',
+    title: 'Chiếc thuyền giấy',
+    difficulty: 'building',
+    topic: 'Trò chơi ở nhà',
+    estimatedMinutes: 9,
+    focusSkill: 'Giữ thứ tự chữ trong từ có âm gần nhau',
+    coachGoal: 'Luyện đọc nhóm từ có vần gần giống mà không đảo chữ.',
+    warmup: [
+      { word: 'thuyền', syllables: 'thuyền', cue: 'Đọc trọn cụm /thuyền/, không tách thành hai nhịp quá mạnh.', example: 'Thuyền giấy nổi trên nước.' },
+      { word: 'trôi', syllables: 'trôi', cue: 'Âm đầu /tr/ chắc, kéo nhẹ ở vần /ôi/.', example: 'Chiếc lá trôi rất chậm.' },
+      { word: 'dòng', syllables: 'dòng', cue: 'Nhấn vừa đủ ở dấu huyền để từ không bị cụt.', example: 'Dòng nước chảy yên.' },
+    ],
+    sentences: [
+      'An gấp một chiếc thuyền giấy màu xanh sau giờ học.',
+      'Em đặt thuyền vào chậu nước và nhìn nó trôi theo vòng tròn nhỏ.',
+      'Mỗi lần thuyền nghiêng sang một bên, An lại đọc chậm câu vừa nói.',
+      'Nhờ vậy, em nhớ đúng thứ tự chữ trong các từ mới.',
+    ],
+    questions: [
+      {
+        id: 'boat-q1',
+        prompt: 'Chiếc thuyền có màu gì?',
+        options: ['Màu xanh', 'Màu đỏ', 'Màu vàng'],
+        answerIndex: 0,
+        explanation: 'Ngay câu đầu tiên cho biết thuyền giấy màu xanh.',
+      },
+      {
+        id: 'boat-q2',
+        prompt: 'Vì sao An đọc chậm câu vừa nói?',
+        options: ['Để nhớ đúng thứ tự chữ', 'Để chơi lâu hơn', 'Để chờ mẹ nghe'],
+        answerIndex: 0,
+        explanation: 'Đây là mục tiêu chính của bài luyện đọc này.',
+      },
+    ],
+    caregiverTip: 'Cho trẻ chỉ tay theo từng từ khi đọc để giảm đảo thứ tự chữ.',
+    createdBy: 'system',
+  },
+  {
+    id: 'book-fair',
+    title: 'Ngày hội đọc sách',
+    difficulty: 'stretch',
+    topic: 'Hoạt động ở trường',
+    estimatedMinutes: 10,
+    focusSkill: 'Đọc hiểu và ghi nhớ ý chính',
+    coachGoal: 'Giữ mạch đọc qua nhiều câu và trả lời được câu hỏi nội dung.',
+    warmup: [
+      { word: 'gian', syllables: 'gian', cue: 'Đừng đọc lẫn với “giang”; dừng rõ ở cuối từ.', example: 'Mỗi gian trưng bày một chủ đề.' },
+      { word: 'nội dung', syllables: 'nội-dung', cue: 'Tách làm hai nhịp vừa đủ để hiểu nghĩa.', example: 'Con kể lại nội dung chính.' },
+      { word: 'tự tin', syllables: 'tự-tin', cue: 'Giữ nhịp đều cho cả cụm từ.', example: 'Con đọc tự tin hơn hôm qua.' },
+    ],
+    sentences: [
+      'Trường của An tổ chức một ngày hội đọc sách vào thứ sáu.',
+      'Mỗi lớp có một gian nhỏ để giới thiệu cuốn sách các bạn yêu thích.',
+      'An chọn một truyện ngắn về biển và luyện đọc trước khi lên chia sẻ.',
+      'Khi đứng trước lớp, em đọc chậm từng câu rồi nói lại nội dung chính bằng lời của mình.',
+    ],
+    questions: [
+      {
+        id: 'book-q1',
+        prompt: 'An chọn loại sách nào để chia sẻ?',
+        options: ['Một truyện ngắn về biển', 'Một bài thơ về mưa', 'Một quyển sách toán'],
+        answerIndex: 0,
+        explanation: 'Câu thứ ba nêu rõ An chọn truyện ngắn về biển.',
+      },
+      {
+        id: 'book-q2',
+        prompt: 'Sau khi đọc, An làm gì?',
+        options: ['Ngồi xuống ngay', 'Nói lại nội dung chính bằng lời của mình', 'Nhờ cô giáo giải thích'],
+        answerIndex: 1,
+        explanation: 'Đây là hành động cho thấy trẻ hiểu và nhớ nội dung.',
+      },
+    ],
+    caregiverTip: 'Khuyến khích trẻ kể lại ý chính bằng câu ngắn; không cần lặp lại nguyên văn.',
+    createdBy: 'system',
+  },
+];
+
+export const initialLearnerRecords: LearnerRecord[] = [
+  {
+    profile: {
+      id: 'an',
+      name: 'Bé An',
+      age: 8,
+      readingLevel: 'Đang củng cố câu ngắn 2-3 dòng',
+      weeklyGoal: 5,
+      streakDays: 4,
+      calmMinutesTarget: 10,
+      supportNeeds: ['Chữ to, khoảng dòng rộng', 'Đoạn ngắn, ít xao nhãng', 'Ôn lại từ dễ nhầm bằng nhiều lần chạm'],
+      strengths: ['Thích kể lại nội dung sau khi đọc', 'Phản hồi tốt với nhịp học ngắn'],
+      interests: ['Động vật', 'Sách tranh', 'Các hoạt động ngoài trời'],
+      rewardPoints: 24,
+      latestBadge: 'Bình tĩnh đọc chậm',
+    },
+    preferences: defaultPreferences,
+    lessonProgress: [
+      {
+        lessonId: 'garden-morning',
+        attempts: 2,
+        bestAccuracy: 0.82,
+        lastCompletedAt: '2026-04-17T08:10:00+07:00',
+        flaggedWords: ['nắng', 'chậm'],
+      },
+      {
+        lessonId: 'paper-boat',
+        attempts: 1,
+        bestAccuracy: 0.7,
+        lastCompletedAt: '2026-04-16T18:20:00+07:00',
+        flaggedWords: ['thuyền', 'trôi'],
+      },
+      {
+        lessonId: 'book-fair',
+        attempts: 0,
+        bestAccuracy: 0,
+        flaggedWords: [],
+      },
+    ],
+    history: [
+      {
+        id: 'an-history-1',
+        profileId: 'an',
+        lessonId: 'paper-boat',
+        lessonTitle: 'Chiếc thuyền giấy',
+        date: '2026-04-16T18:20:00+07:00',
+        accuracy: 0.7,
+        minutes: 9,
+        flaggedWords: ['thuyền', 'trôi'],
+        note: 'Cần ôn thêm nhóm từ có âm đầu gần nhau.',
+        fluencyRating: 3,
+      },
+      {
+        id: 'an-history-2',
+        profileId: 'an',
+        lessonId: 'garden-morning',
+        lessonTitle: 'Vườn nắng buổi sáng',
+        date: '2026-04-17T08:10:00+07:00',
+        accuracy: 0.82,
+        minutes: 8,
+        flaggedWords: ['nắng', 'chậm'],
+        note: 'Đọc chậm ổn định hơn, trả lời đúng 1/2 câu hỏi.',
+        fluencyRating: 4,
+      },
+      {
+        id: 'an-history-3',
+        profileId: 'an',
+        lessonId: 'garden-morning',
+        lessonTitle: 'Vườn nắng buổi sáng',
+        date: '2026-04-18T07:40:00+07:00',
+        accuracy: 0.88,
+        minutes: 8,
+        flaggedWords: ['lá'],
+        note: 'Ít bỏ sót chữ, cần tăng tự tin khi kể lại ý chính.',
+        fluencyRating: 4,
+      },
+    ],
+    notes: [
+      {
+        id: 'an-note-1',
+        profileId: 'an',
+        lessonId: 'garden-morning',
+        createdAt: '2026-04-18T07:50:00+07:00',
+        text: 'Buổi sáng hợp tác tốt hơn buổi tối.',
+      },
+    ],
+    onboarding: {
+      step: 0,
+      completed: false,
+    },
+  },
+  {
+    profile: {
+      id: 'mai',
+      name: 'Bé Mai',
+      age: 9,
+      readingLevel: 'Đang luyện tốc độ với đoạn quen thuộc',
+      weeklyGoal: 4,
+      streakDays: 2,
+      calmMinutesTarget: 8,
+      supportNeeds: ['Câu rõ nghĩa', 'Nhiều nhắc lại bằng âm thanh'],
+      strengths: ['Nhớ tốt nội dung tranh minh họa', 'Thích phần thưởng nhỏ'],
+      interests: ['Biển', 'Mèo', 'Gấp giấy'],
+      rewardPoints: 16,
+      latestBadge: 'Giữ nhịp đều',
+    },
+    preferences: {
+      ...defaultPreferences,
+      themeId: 'mint',
+      showSyllables: true,
+      readerFont: 'serif',
+      azureVoice: 'vi-VN-NamMinhNeural',
+    },
+    lessonProgress: [
+      {
+        lessonId: 'garden-morning',
+        attempts: 1,
+        bestAccuracy: 0.76,
+        lastCompletedAt: '2026-04-17T19:00:00+07:00',
+        flaggedWords: ['lá'],
+      },
+      {
+        lessonId: 'paper-boat',
+        attempts: 2,
+        bestAccuracy: 0.84,
+        lastCompletedAt: '2026-04-18T18:00:00+07:00',
+        flaggedWords: ['dòng'],
+      },
+      {
+        lessonId: 'book-fair',
+        attempts: 1,
+        bestAccuracy: 0.72,
+        lastCompletedAt: '2026-04-15T18:30:00+07:00',
+        flaggedWords: ['gian'],
+      },
+    ],
+    history: [
+      {
+        id: 'mai-history-1',
+        profileId: 'mai',
+        lessonId: 'book-fair',
+        lessonTitle: 'Ngày hội đọc sách',
+        date: '2026-04-15T18:30:00+07:00',
+        accuracy: 0.72,
+        minutes: 10,
+        flaggedWords: ['gian'],
+        note: 'Hiểu ý chính nhưng còn ngập ngừng.',
+        fluencyRating: 3,
+      },
+      {
+        id: 'mai-history-2',
+        profileId: 'mai',
+        lessonId: 'paper-boat',
+        lessonTitle: 'Chiếc thuyền giấy',
+        date: '2026-04-18T18:00:00+07:00',
+        accuracy: 0.84,
+        minutes: 8,
+        flaggedWords: ['dòng'],
+        note: 'Đọc ổn hơn khi nghe mẫu từng câu.',
+        fluencyRating: 4,
+      },
+    ],
+    notes: [],
+    onboarding: {
+      step: 2,
+      completed: false,
+    },
+  },
+];
+
+export const homeHighlights = [
+  {
+    title: 'Lộ trình ngắn 3 bước',
+    body: 'Khởi động từ khó, đọc từng câu lớn rõ, rồi kiểm tra hiểu bài bằng câu hỏi đơn giản.',
+  },
+  {
+    title: 'Tương tác thích nghi',
+    body: 'App tự gợi ý bài tiếp theo dựa trên từ từng bị đánh dấu và độ chính xác của buổi gần nhất.',
+  },
+  {
+    title: 'Theo dõi dễ giải thích',
+    body: 'Phụ huynh và giáo viên chỉ thấy các chỉ số hỗ trợ luyện đọc, không có tuyên bố chẩn đoán.',
+  },
+];
+
+export const onboardingSteps = [
+  {
+    title: 'Chọn hồ sơ phù hợp',
+    body: 'Mỗi trẻ có tiến độ, từ khó và giao diện cá nhân hóa riêng.',
+  },
+  {
+    title: 'Luyện trong 8-10 phút',
+    body: 'Mỗi buổi chỉ nên ngắn, rõ và có phản hồi ngay khi gặp từ khó.',
+  },
+  {
+    title: 'Xem báo cáo sau buổi học',
+    body: 'Tab Theo dõi gom lại độ chính xác, từ cần ôn và gợi ý bài tiếp theo.',
+  },
+];
+
+export const hciChecklistGroups: HciChecklistGroup[] = [
+  {
+    title: 'Nguyên lý thiết kế áp dụng',
+    items: [
+      'Một màn hình tập trung vào một nhiệm vụ chính để giảm tải nhận thức.',
+      'Chữ lớn, nền dịu, khoảng dòng rộng giúp giảm áp lực thị giác.',
+      'Phản hồi tức thì khi đánh dấu từ khó hoặc trả lời câu hỏi.',
+      'Cho phép điều chỉnh giao diện ngay trong buổi học mà không rời luồng đọc.',
+    ],
+  },
+  {
+    title: 'Cơ sở từ tài liệu HCI',
+    items: [
+      'The Human: tôn trọng giới hạn trí nhớ ngắn hạn bằng câu ngắn và gợi ý rõ.',
+      'Design Rules: tăng visibility, feedback, consistency và error recovery.',
+      'HCI in Software Process: giữ persona, scenario và usability test gắn với từng màn hình.',
+      'Socio-organizational issues: báo cáo ưu tiên ngắn gọn để phụ huynh và giáo viên dùng trong bối cảnh thật.',
+    ],
+  },
+  {
+    title: 'Kế hoạch usability test',
+    items: [
+      'Người tham gia: 5-10 phụ huynh, giáo viên hoặc người dùng đại diện.',
+      'Nhiệm vụ: mở app, bắt đầu bài gợi ý, đánh dấu từ khó, nghe mẫu và xem tiến độ.',
+      'Chỉ số: thời gian hoàn thành, số lần chạm nhầm, mức cần trợ giúp, mức hài lòng.',
+      'Câu hỏi hậu kiểm: chữ đã đủ dễ đọc chưa, luồng có dễ hiểu không, báo cáo có đủ rõ không.',
+    ],
+  },
+];
