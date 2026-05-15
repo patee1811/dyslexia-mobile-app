@@ -6,6 +6,10 @@ import type {
   ThemeOption,
 } from '../types';
 
+export { skillTree } from './skillTree';
+export { structuredLessons } from './structuredLessons';
+export { vietnamesePatterns } from './vietnamesePatterns';
+
 export const themeOptions: ThemeOption[] = [
   {
     id: 'sun',
