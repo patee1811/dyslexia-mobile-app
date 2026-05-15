@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import PrimaryButton from '../components/PrimaryButton';
 import ProgressBar from '../components/ProgressBar';
 import SectionCard from '../components/SectionCard';
+import ProfileCard from '../components/profile/ProfileCard';
 import { useAppModel } from '../context/AppModel';
 import { homeHighlights, onboardingSteps } from '../data/content';
 
@@ -165,22 +166,15 @@ export default function HomeScreen({ onOpenPractice, onOpenCaregiver }: Props) {
         </Text>
       </SectionCard>
 
-      <SectionCard title="Hồ sơ người học" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
-        <Text style={[styles.profileHeading, { color: currentTheme.text }]}>
-          {profile.name}, {profile.age} tuổi
-        </Text>
-        <Text style={[styles.note, { color: currentTheme.subtext }]}>{profile.readingLevel}</Text>
-        <Text style={[styles.rewardText, { color: currentTheme.accent }]}>
-          Điểm thưởng: {profile.rewardPoints} • Huy hiệu: {profile.latestBadge ?? 'Chưa có'}
-        </Text>
-        <View style={styles.chips}>
-          {profile.supportNeeds.map((item) => (
-            <View key={item} style={[styles.chip, { backgroundColor: currentTheme.surfaceAlt }]}>
-              <Text style={[styles.chipText, { color: currentTheme.text }]}>{item}</Text>
-            </View>
-          ))}
-        </View>
-      </SectionCard>
+      <ProfileCard
+        name={profile.name}
+        age={profile.age}
+        readingLevel={profile.readingLevel}
+        supportNeeds={profile.supportNeeds}
+        strengths={profile.strengths}
+        interests={profile.interests}
+        weeklyGoal={profile.weeklyGoal}
+      />
 
       <SectionCard title="Thư viện bài đọc" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
         {lessons.map((lesson) => {

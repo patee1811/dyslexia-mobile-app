@@ -1,32 +1,57 @@
 # Usability Test Form
 
-## Thông tin người tham gia
+Không thu thông tin nhạy cảm không cần thiết của trẻ. Có thể dùng mã người tham gia thay cho tên thật.
 
-- Mã người tham gia:
-- Vai trò: phụ huynh / giáo viên / người dùng đại diện
-- Ngày test:
+## 1. Thông tin người tham gia
 
-## Kết quả theo tác vụ
+| Trường | Ghi chú |
+| --- | --- |
+| Mã người tham gia | |
+| Vai trò | Trẻ / Phụ huynh / Giáo viên / Sinh viên tester |
+| Nhóm tuổi | 7-9 / 10-12 / Người lớn |
+| Lần đầu dùng app? | Có / Không |
+| Ngày test | |
 
-| Tác vụ | Hoàn thành | Thời gian | Chạm nhầm | Cần trợ giúp | Ghi chú |
-|---|---|---:|---:|---:|---|
-| Chọn hồ sơ người học |  |  |  |  |  |
-| Bắt đầu bài luyện gợi ý |  |  |  |  |  |
-| Nghe mẫu từ hoặc câu |  |  |  |  |  |
-| Bật siêu tập trung / đổi font |  |  |  |  |  |
-| Đánh dấu từ khó |  |  |  |  |  |
-| Xem báo cáo theo dõi |  |  |  |  |  |
+## 2. Task checklist
 
-## Đánh giá nhanh
+Ký hiệu: Hoàn thành / Cần trợ giúp / Không hoàn thành.
 
-- Giao diện dễ hiểu: 1 2 3 4 5
-- Chữ dễ đọc: 1 2 3 4 5
-- Tìm nút nghe mẫu dễ: 1 2 3 4 5
-- Báo cáo theo dõi dễ hiểu: 1 2 3 4 5
-- Mức hài lòng chung: 1 2 3 4 5
+| Task | Kết quả | Thời gian | Lỗi thao tác | Ghi chú quan sát |
+| --- | --- | --- | --- | --- |
+| Chọn hồ sơ trẻ | | | | |
+| Bắt đầu bài luyện | | | | |
+| Nghe lại một từ/câu | | | | |
+| Hoàn thành một câu hỏi | | | | |
+| Xem dashboard phụ huynh | | | | |
+| Tìm bài gợi ý tiếp theo | | | | |
+| Tạo bài luyện ngắn | | | | |
+| Đọc cảnh báo validator | | | | |
 
-## Nhận xét mở
+## 3. Điểm đánh giá 1-5
 
-- Điểm người dùng thích:
-- Điểm gây nhầm lẫn:
-- Đề xuất cải tiến:
+1 = rất khó/rất không đồng ý, 5 = rất dễ/rất đồng ý.
+
+| Câu hỏi | 1 | 2 | 3 | 4 | 5 | Ghi chú |
+| --- | --- | --- | --- | --- | --- | --- |
+| Giao diện dễ dùng | | | | | | |
+| Chữ dễ đọc | | | | | | |
+| Nút nghe lại dễ tìm | | | | | | |
+| Dashboard dễ hiểu | | | | | | |
+| Bài gợi ý và lý do rõ ràng | | | | | | |
+| Người dùng cảm thấy thoải mái | | | | | | |
+
+## 4. Ghi chú quan sát
+
+- Người tham gia dừng lâu ở đâu?
+- Có nhấn nhầm nút nào không?
+- Có dấu hiệu quá tải giao diện không?
+- Trẻ có thoải mái khi thấy phản hồi sau bài không?
+- Phụ huynh/giáo viên có hiểu app không chẩn đoán không?
+
+## 5. Đề xuất cải thiện
+
+- Điểm khó nhất:
+- Điểm dễ hiểu nhất:
+- Tính năng cần sửa trước:
+- Từ ngữ nào gây hiểu nhầm:
+- Góp ý mở:
