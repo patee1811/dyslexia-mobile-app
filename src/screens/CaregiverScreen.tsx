@@ -11,7 +11,9 @@ import ProfileCard from '../components/profile/ProfileCard';
 import { useAppModel } from '../context/AppModel';
 import { formatSessionDate } from '../lib/coach';
 import { validateCustomLessonDraft } from '../lib/customLesson';
+import type { SkillMastery } from '../lib/mastery';
 import type { Lesson, LessonProgress, SessionHistoryEntry } from '../types';
+import type { LessonSessionMetrics, ReadingErrorType } from '../types/progress';
 
 type Props = {
   onOpenPractice: () => void;
@@ -25,6 +27,10 @@ export default function CaregiverScreen({ onOpenPractice }: Props) {
     recommendation,
     focusWords,
     shortReport,
+    structuredRecommendation,
+    caregiverInsights,
+    skillMastery,
+    lessonSessionMetrics,
     startLesson,
     addCaregiverNote,
     addLesson,
@@ -39,7 +45,9 @@ export default function CaregiverScreen({ onOpenPractice }: Props) {
 
   const { profile, history, lessonProgress, notes } = activeRecord;
   const latestSession = history[0];
-  const recommendedLesson = lessons.find((lesson) => lesson.id === recommendation.lessonId);
+  const recommendedLesson =
+    lessons.find((lesson) => lesson.id === structuredRecommendation.lessonId) ??
+    lessons.find((lesson) => lesson.id === recommendation.lessonId);
 
   const lessonValidation = validateCustomLessonDraft({
     title: lessonTitle,
@@ -49,8 +57,8 @@ export default function CaregiverScreen({ onOpenPractice }: Props) {
   });
 
   const actionSummary = useMemo(
-    () => buildActionSummary(history, focusWords, recommendedLesson),
-    [focusWords, history, recommendedLesson],
+    () => (caregiverInsights.length ? caregiverInsights.map((item) => `- ${item}`) : buildActionSummary(history, focusWords, recommendedLesson)),
+    [caregiverInsights, focusWords, history, recommendedLesson],
   );
 
   const submitNote = () => {
@@ -84,6 +92,7 @@ export default function CaregiverScreen({ onOpenPractice }: Props) {
         name={profile.name}
         age={profile.age}
         readingLevel={profile.readingLevel}
+        region={profile.region}
         supportNeeds={profile.supportNeeds}
         strengths={profile.strengths}
         interests={profile.interests}
@@ -102,18 +111,18 @@ export default function CaregiverScreen({ onOpenPractice }: Props) {
         ))}
       </SectionCard>
 
-      <SkillMasteryCard skills={buildSkillMastery(lessons, lessonProgress)} />
+      <SkillMasteryCard skills={buildStructuredSkillMastery(skillMastery, lessons, lessonProgress)} />
 
-      <ErrorSummaryCard errors={buildErrorSummary(history)} />
+      <ErrorSummaryCard errors={buildMetricErrorSummary(lessonSessionMetrics, focusWords, history)} />
 
       <NextLessonCard
-        title={recommendation.title}
-        reason={recommendation.reason}
+        title={structuredRecommendation.title}
+        reason={structuredRecommendation.reason}
         difficulty={recommendedLesson?.difficulty ?? 'building'}
         focusSkill={recommendedLesson?.focusSkill}
         estimatedMinutes={recommendedLesson?.estimatedMinutes}
         onPress={() => {
-          startLesson(recommendation.lessonId);
+          startLesson(structuredRecommendation.lessonId);
           onOpenPractice();
         }}
       />
@@ -306,6 +315,120 @@ function buildSkillMastery(lessons: Lesson[], progress: LessonProgress[]) {
       masteryPercent: attempts === 0 ? 0 : masteryPercent,
     };
   });
+}
+
+function labelSkill(skill: string) {
+  if (skill.includes('tone')) {
+    return 'Dấu thanh';
+  }
+
+  if (skill.includes('onset') || skill.includes('sound')) {
+    return 'Âm đầu';
+  }
+
+  if (skill.includes('rime') || skill.includes('syllable')) {
+    return 'Vần/ghép tiếng';
+  }
+
+  if (skill.includes('sentence')) {
+    return 'Đọc câu ngắn';
+  }
+
+  if (skill.includes('comprehension')) {
+    return 'Đọc hiểu';
+  }
+
+  if (skill.includes('spelling')) {
+    return 'Quy tắc chính tả';
+  }
+
+  return skill;
+}
+
+function buildStructuredSkillMastery(
+  mastery: SkillMastery[],
+  lessons: Lesson[],
+  progress: LessonProgress[],
+) {
+  if (mastery.length === 0) {
+    return buildSkillMastery(lessons, progress);
+  }
+
+  return mastery
+    .slice()
+    .sort((left, right) => new Date(right.lastPracticedAt).getTime() - new Date(left.lastPracticedAt).getTime())
+    .slice(0, 6)
+    .map((entry) => {
+      const lesson = lessons.find((item) => item.id === entry.patternKey);
+
+      return {
+        name: lesson ? `${labelSkill(entry.skill)} - ${lesson.title}` : labelSkill(entry.skill),
+        status: entry.mastered
+          ? ('stable' as const)
+          : entry.recentAccuracy >= 80
+            ? ('in-practice' as const)
+            : ('needs-review' as const),
+        masteryPercent: Math.round(entry.recentAccuracy),
+      };
+    });
+}
+
+const errorLabels: Record<ReadingErrorType, string> = {
+  tone_error: 'Sai dấu thanh',
+  onset_confusion: 'Nhầm âm đầu',
+  rime_confusion: 'Nhầm vần',
+  omission: 'Bỏ sót đáp án/từ',
+  substitution: 'Chọn nhầm đáp án',
+  slow_decoding: 'Đọc/giải mã còn chậm',
+  needs_audio_prompt: 'Cần nghe mẫu nhiều',
+  comprehension_error: 'Cần ôn đọc hiểu',
+};
+
+function suggestionForMetricError(type: ReadingErrorType) {
+  if (type === 'tone_error') {
+    return 'Cho con nghe lại từng cặp nắng/nặng, lá/lạ trước khi đọc câu.';
+  }
+
+  if (type === 'onset_confusion') {
+    return 'Cho con chỉ vào âm đầu trước khi ghép cả tiếng.';
+  }
+
+  if (type === 'rime_confusion') {
+    return 'Đọc chậm từng cặp vần như an/ang rồi đặt vào câu ngắn.';
+  }
+
+  if (type === 'comprehension_error') {
+    return 'Sau mỗi câu, hỏi con kể lại bằng một ý ngắn.';
+  }
+
+  if (type === 'needs_audio_prompt') {
+    return 'Cho con nghe mẫu một lần, rồi đọc lại chậm thay vì nghe liên tục.';
+  }
+
+  if (type === 'slow_decoding') {
+    return 'Giảm độ dài câu và cho con nghỉ một nhịp giữa các cụm từ.';
+  }
+
+  return 'Ôn lại bằng từ ngắn, quen thuộc trước khi chuyển sang câu.';
+}
+
+function buildMetricErrorSummary(
+  metrics: LessonSessionMetrics,
+  focusWords: string[],
+  history: SessionHistoryEntry[],
+) {
+  const errors = (Object.entries(metrics.errorSummary) as [ReadingErrorType, number][])
+    .filter(([, count]) => count > 0)
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 3)
+    .map(([type, count]) => ({
+      type: errorLabels[type],
+      count,
+      examples: focusWords.slice(0, 3),
+      suggestion: suggestionForMetricError(type),
+    }));
+
+  return errors.length ? errors : buildErrorSummary(history);
 }
 
 function buildErrorSummary(history: SessionHistoryEntry[]) {

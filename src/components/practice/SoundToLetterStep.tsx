@@ -32,6 +32,15 @@ export default function SoundToLetterStep({
       responseTimeMs: Date.now() - startedAtRef.current,
     });
   };
+  const replay = () => {
+    onAnswer({
+      taskId: task.id,
+      isCorrect: true,
+      supportUsed: ['audio_replay'],
+      responseTimeMs: Date.now() - startedAtRef.current,
+    });
+    onReplayAudio?.(task.audioText ?? task.targetText ?? '');
+  };
 
   return (
     <View style={styles.container}>
@@ -42,7 +51,7 @@ export default function SoundToLetterStep({
       <View style={styles.soundCard}>
         <Text style={styles.soundLabel}>Âm cần nghe</Text>
         <Text style={styles.soundText}>{task.targetText}</Text>
-        <PrimaryButton label="Nghe âm" onPress={() => onReplayAudio?.(task.audioText ?? task.targetText ?? '')} secondary compact />
+        <PrimaryButton label="Nghe âm" onPress={replay} secondary compact />
       </View>
 
       <View style={styles.choiceGrid}>

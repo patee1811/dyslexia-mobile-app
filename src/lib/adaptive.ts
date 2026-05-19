@@ -20,11 +20,21 @@ function normalizeSkill(value?: string): LiteracySkill | undefined {
     return 'tone';
   }
 
-  if (normalized.includes('onset') || normalized.includes('am dau') || normalized.includes('âm đầu')) {
+  if (
+    normalized.includes('onset') ||
+    normalized.includes('sound_symbol') ||
+    normalized.includes('am dau') ||
+    normalized.includes('âm đầu')
+  ) {
     return 'onset';
   }
 
-  if (normalized.includes('rime') || normalized.includes('van') || normalized.includes('vần')) {
+  if (
+    normalized.includes('rime') ||
+    normalized.includes('syllable_blending') ||
+    normalized.includes('van') ||
+    normalized.includes('vần')
+  ) {
     return 'rime';
   }
 
@@ -36,7 +46,7 @@ function normalizeSkill(value?: string): LiteracySkill | undefined {
     return 'sentence';
   }
 
-  if (normalized.includes('word') || normalized.includes('tu')) {
+  if (normalized.includes('word') || normalized.includes('spelling') || normalized.includes('chinh ta') || normalized.includes('tu')) {
     return 'word';
   }
 
@@ -93,11 +103,13 @@ function referenceDate(completedSessions: PracticeAnswer[], skillMastery: SkillM
 }
 
 function prerequisitesAreReady(lesson: StructuredLesson, skillMastery: SkillMastery[]) {
-  if (!lesson.prerequisites?.length) {
+  const prerequisites = lesson.prerequisites ?? lesson.prerequisiteLessonIds;
+
+  if (!prerequisites?.length) {
     return true;
   }
 
-  return lesson.prerequisites.every((prerequisite) =>
+  return prerequisites.every((prerequisite) =>
     skillMastery.some(
       (mastery) =>
         mastery.mastered && (mastery.patternKey === prerequisite || normalizeSkill(mastery.skill) === normalizeSkill(prerequisite)),

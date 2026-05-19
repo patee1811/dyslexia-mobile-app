@@ -32,6 +32,16 @@ export default function ReadWordStep({
       setFlagged(true);
     }
   };
+  const replay = () => {
+    onAnswer({
+      taskId: task.id,
+      selectedAnswer: word,
+      isCorrect: true,
+      supportUsed: ['audio_replay'],
+      responseTimeMs: Date.now() - startedAtRef.current,
+    });
+    onReplayAudio?.(word);
+  };
 
   const finishWord = () => {
     onAnswer({
@@ -57,7 +67,7 @@ export default function ReadWordStep({
       {flagged ? <Text style={styles.feedback}>Mình đã đưa từ này vào phần ôn.</Text> : null}
 
       <View style={styles.actions}>
-        <PrimaryButton label="Nghe mẫu" onPress={() => onReplayAudio?.(word)} secondary />
+        <PrimaryButton label="Nghe mẫu" onPress={replay} secondary />
         <PrimaryButton label="Từ này khó" onPress={flagWord} secondary />
         <PrimaryButton label="Con đã đọc xong" onPress={finishWord} />
       </View>

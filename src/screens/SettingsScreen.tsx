@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import PrimaryButton from '../components/PrimaryButton';
 import SectionCard from '../components/SectionCard';
+import ReaderSettingsPanel from '../components/settings/ReaderSettingsPanel';
 import { useAppModel } from '../context/AppModel';
 import type { PracticePreferences } from '../types';
 
@@ -47,6 +48,8 @@ export default function SettingsScreen() {
             : 'Nếu chưa cấu hình Azure hoặc lỗi mạng, app sẽ fallback sang system TTS.'}
         </Text>
       </SectionCard>
+
+      <ReaderSettingsPanel />
 
       <SectionCard title="Chọn giọng Azure" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
         <View style={styles.voiceList}>

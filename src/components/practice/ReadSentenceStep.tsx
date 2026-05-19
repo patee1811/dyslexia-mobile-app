@@ -33,6 +33,16 @@ export default function ReadSentenceStep({
       setFlagged(true);
     }
   };
+  const replay = () => {
+    onAnswer({
+      taskId: task.id,
+      selectedAnswer: sentence,
+      isCorrect: true,
+      supportUsed: ['audio_replay'],
+      responseTimeMs: Date.now() - startedAtRef.current,
+    });
+    onReplayAudio?.(sentence);
+  };
 
   const finishSentence = () => {
     onAnswer({
@@ -71,7 +81,7 @@ export default function ReadSentenceStep({
       {flagged ? <Text style={styles.feedback}>Mình đã ghi chú câu này cần ôn chậm hơn.</Text> : null}
 
       <View style={styles.actions}>
-        <PrimaryButton label="Nghe câu" onPress={() => onReplayAudio?.(sentence)} secondary />
+        <PrimaryButton label="Nghe câu" onPress={replay} secondary />
         <PrimaryButton label="Câu này khó" onPress={flagSentence} secondary />
         <PrimaryButton label="Đã đọc xong" onPress={finishSentence} />
       </View>

@@ -33,6 +33,15 @@ export default function BlendSyllableStep({
       responseTimeMs: Date.now() - startedAtRef.current,
     });
   };
+  const replay = () => {
+    onAnswer({
+      taskId: task.id,
+      isCorrect: true,
+      supportUsed: ['audio_replay'],
+      responseTimeMs: Date.now() - startedAtRef.current,
+    });
+    onReplayAudio?.(task.audioText ?? task.targetText ?? '');
+  };
 
   return (
     <View style={styles.container}>
@@ -47,7 +56,7 @@ export default function BlendSyllableStep({
         <PartRow label="Kết quả" value={isCorrect ? parts?.result ?? task.targetText ?? '' : '...'} strong />
       </View>
 
-      <PrimaryButton label="Nghe tiếng mẫu" onPress={() => onReplayAudio?.(task.audioText ?? task.targetText ?? '')} secondary />
+      <PrimaryButton label="Nghe tiếng mẫu" onPress={replay} secondary />
 
       <View style={styles.choiceList}>
         {choices.map((choice) => {

@@ -32,6 +32,15 @@ export default function ToneMinimalPairStep({
       responseTimeMs: Date.now() - startedAtRef.current,
     });
   };
+  const replay = () => {
+    onAnswer({
+      taskId: task.id,
+      isCorrect: true,
+      supportUsed: ['audio_replay'],
+      responseTimeMs: Date.now() - startedAtRef.current,
+    });
+    onReplayAudio?.(task.audioText ?? task.targetText ?? '');
+  };
 
   const getChoiceDetail = (choice: string): ChoiceDetail | undefined => task.choiceDetails?.find((item) => item.value === choice);
 
@@ -44,7 +53,7 @@ export default function ToneMinimalPairStep({
       <View style={styles.listenCard}>
         <Text style={styles.listenLabel}>Nghe</Text>
         <Text style={styles.listenText}>{task.targetText}</Text>
-        <PrimaryButton label="Nghe lại" onPress={() => onReplayAudio?.(task.audioText ?? task.targetText ?? '')} secondary compact />
+        <PrimaryButton label="Nghe lại" onPress={replay} secondary compact />
       </View>
 
       <View style={styles.choiceList}>

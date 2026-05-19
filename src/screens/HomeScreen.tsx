@@ -26,7 +26,7 @@ export default function HomeScreen({ onOpenPractice, onOpenCaregiver }: Props) {
     lessons,
     currentTheme,
     weeklyStats,
-    recommendation,
+    structuredRecommendation,
     setActiveProfile,
     startLesson,
     cycleTheme,
@@ -39,6 +39,7 @@ export default function HomeScreen({ onOpenPractice, onOpenCaregiver }: Props) {
   const { profile, preferences, lessonProgress, onboarding } = activeRecord;
   const goalProgress = Math.min(activeRecord.history.length / profile.weeklyGoal, 1);
   const onboardingStep = onboardingSteps[onboarding.step] ?? onboardingSteps[onboardingSteps.length - 1];
+  const recommendedLesson = lessons.find((lesson) => lesson.id === structuredRecommendation.lessonId);
 
   return (
     <ScrollView style={{ backgroundColor: currentTheme.background }} contentContainerStyle={styles.content}>
@@ -52,9 +53,9 @@ export default function HomeScreen({ onOpenPractice, onOpenCaregiver }: Props) {
         </Text>
         <View style={styles.heroActions}>
           <PrimaryButton
-            label={`Bắt đầu: ${recommendation.title}`}
+            label={`Bắt đầu: ${structuredRecommendation.title}`}
             onPress={() => {
-              startLesson(recommendation.lessonId);
+              startLesson(structuredRecommendation.lessonId);
               onOpenPractice();
             }}
           />
@@ -107,7 +108,7 @@ export default function HomeScreen({ onOpenPractice, onOpenCaregiver }: Props) {
 
       <SectionCard
         title="Buổi học gợi ý hôm nay"
-        subtitle={recommendation.reason}
+        subtitle={structuredRecommendation.reason}
         style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}
       >
         <View style={styles.inlineMeta}>
@@ -128,7 +129,7 @@ export default function HomeScreen({ onOpenPractice, onOpenCaregiver }: Props) {
           <PrimaryButton
             label="Mở buổi học này"
             onPress={() => {
-              startLesson(recommendation.lessonId);
+              startLesson(structuredRecommendation.lessonId);
               onOpenPractice();
             }}
           />
@@ -170,6 +171,7 @@ export default function HomeScreen({ onOpenPractice, onOpenCaregiver }: Props) {
         name={profile.name}
         age={profile.age}
         readingLevel={profile.readingLevel}
+        region={profile.region}
         supportNeeds={profile.supportNeeds}
         strengths={profile.strengths}
         interests={profile.interests}
@@ -189,13 +191,15 @@ export default function HomeScreen({ onOpenPractice, onOpenCaregiver }: Props) {
               }}
               style={[
                 styles.lessonCard,
-                { backgroundColor: lesson.id === recommendation.lessonId ? currentTheme.surfaceAlt : '#FFFDF8' },
+                { backgroundColor: lesson.id === structuredRecommendation.lessonId ? currentTheme.surfaceAlt : '#FFFDF8' },
               ]}
             >
               <View style={styles.lessonHeader}>
                 <Text style={[styles.lessonTitle, { color: currentTheme.text }]}>{lesson.title}</Text>
                 <View style={[styles.levelBadge, { backgroundColor: currentTheme.accentSoft }]}>
-                  <Text style={[styles.levelText, { color: currentTheme.accent }]}>{difficultyLabel[lesson.difficulty]}</Text>
+                  <Text style={[styles.levelText, { color: currentTheme.accent }]}>
+                    {difficultyLabel[(recommendedLesson?.id === lesson.id ? recommendedLesson : lesson).difficulty]}
+                  </Text>
                 </View>
               </View>
               <Text style={[styles.note, { color: currentTheme.subtext }]}>{lesson.focusSkill}</Text>

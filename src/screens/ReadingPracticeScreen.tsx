@@ -14,12 +14,13 @@ import type {
   BlendParts,
   ChoiceDetail,
   LessonTask,
-  PracticeAnswerDraft,
+  PracticeAnswerDraft as LocalPracticeAnswerDraft,
   PracticeTaskKind,
   ReaderPreferences,
 } from '../components/practice/types';
 import { useAppModel } from '../context/AppModel';
 import type { Lesson, SessionState, WarmupWord } from '../types';
+import type { LessonTask as StructuredLessonTask, VietnameseTone } from '../types/literacy';
 
 const VIETNAMESE_INITIALS = [
   'ngh',
@@ -67,6 +68,15 @@ type ToneAccentKey = keyof typeof TONE_MARKS;
 type ToneKey = ToneAccentKey | 'ngang';
 
 const TONE_LABELS: Record<ToneKey, string> = {
+  ngang: 'không dấu',
+  sac: 'dấu sắc',
+  huyen: 'dấu huyền',
+  hoi: 'dấu hỏi',
+  nga: 'dấu ngã',
+  nang: 'dấu nặng',
+};
+
+const STRUCTURED_TONE_LABELS: Record<VietnameseTone, string> = {
   ngang: 'không dấu',
   sac: 'dấu sắc',
   huyen: 'dấu huyền',
@@ -272,12 +282,167 @@ function getReaderPreferences(preferences: ReaderPreferences): ReaderPreferences
   };
 }
 
+function structuredTaskTitle(task: StructuredLessonTask) {
+  switch (task.type) {
+    case 'listen_choose':
+      return 'Nghe và chọn tiếng đúng';
+    case 'sound_to_letter':
+      return 'Nghe âm và chọn chữ';
+    case 'blend_syllable':
+      return 'Ghép âm thành tiếng';
+    case 'tone_minimal_pair':
+      return 'Phân biệt dấu thanh';
+    case 'read_word':
+      return 'Đọc một từ';
+    case 'read_sentence':
+      return 'Đọc một câu';
+    case 'comprehension':
+      return 'Trả lời câu hỏi ngắn';
+    default:
+      return 'Luyện đọc';
+  }
+}
+
+function convertStructuredTask(
+  task: StructuredLessonTask,
+  index: number,
+  lesson: Lesson,
+  readerPreferences: ReaderPreferences,
+  flaggedWords: string[],
+): LessonTask {
+  switch (task.type) {
+    case 'listen_choose':
+      return {
+        id: task.id,
+        kind: 'listen_choose',
+        title: structuredTaskTitle(task),
+        instruction: task.instruction,
+        targetText: task.answer,
+        audioText: task.promptText,
+        choices: task.options,
+        correctAnswer: task.answer,
+      };
+    case 'sound_to_letter':
+      return {
+        id: task.id,
+        kind: 'sound_to_letter',
+        title: structuredTaskTitle(task),
+        instruction: task.instruction,
+        targetText: task.answer,
+        audioText: task.soundLabel,
+        choices: task.options,
+        correctAnswer: task.answer,
+      };
+    case 'blend_syllable':
+      return {
+        id: task.id,
+        kind: 'blend_syllable',
+        title: structuredTaskTitle(task),
+        instruction: task.instruction,
+        targetText: task.answer,
+        audioText: task.answer,
+        choices: arrangeChoices(task.answer, [task.onset + task.rime, task.rime, task.onset], 3),
+        correctAnswer: task.answer,
+        parts: {
+          initial: task.onset,
+          rime: task.rime,
+          tone: task.tone ? STRUCTURED_TONE_LABELS[task.tone] : 'không dấu',
+          result: task.answer,
+        },
+      };
+    case 'tone_minimal_pair':
+      return {
+        id: task.id,
+        kind: 'tone_minimal_pair',
+        title: structuredTaskTitle(task),
+        instruction: task.instruction,
+        targetText: task.answer,
+        audioText: task.answer,
+        choices: task.options,
+        correctAnswer: task.answer,
+        choiceDetails: task.options.map((value) => ({
+          value,
+          label: TONE_LABELS[getToneInfo(value).tone],
+        })),
+      };
+    case 'read_word':
+      return {
+        id: task.id,
+        kind: 'read_word',
+        title: structuredTaskTitle(task),
+        instruction: task.instruction,
+        targetText: task.word,
+        audioText: task.word,
+        correctAnswer: task.word,
+      };
+    case 'read_sentence':
+      return {
+        id: task.id,
+        kind: 'read_sentence',
+        title: structuredTaskTitle(task),
+        instruction: task.instruction,
+        sentence: task.sentence,
+        targetText: task.sentence,
+        audioText: task.sentence,
+        correctAnswer: task.sentence,
+        sentenceIndex: index,
+        totalSentences: lesson.sentences.length,
+        readerPreferences,
+        warmupWords: getWarmupWords(lesson),
+        flaggedWords,
+      };
+    case 'comprehension': {
+      const answerIndex = Math.max(0, task.options.findIndex((option) => option === task.answer));
+
+      return {
+        id: task.id,
+        kind: 'comprehension',
+        title: structuredTaskTitle(task),
+        instruction: task.instruction,
+        questionId: task.id,
+        prompt: task.question,
+        options: task.options.slice(0, 3),
+        answerIndex,
+        explanation: 'Đúng rồi, con đã hiểu ý chính của câu.',
+        targetText: task.question,
+        correctAnswer: task.answer,
+      };
+    }
+    default:
+      return {
+        id: `${lesson.id}-unknown-${index}`,
+        kind: 'review',
+        title: 'Ôn lại nhẹ nhàng',
+        instruction: 'Mình chuyển sang phần ôn lại.',
+      };
+  }
+}
+
 function buildLessonTasks(
   lesson: Lesson,
   readerPreferences: ReaderPreferences,
   flaggedWords: string[],
   completed: boolean,
 ): LessonTask[] {
+  if (lesson.structuredTasks?.length) {
+    const structuredTasks = lesson.structuredTasks.map((task, index) =>
+      convertStructuredTask(task, index, lesson, readerPreferences, flaggedWords),
+    );
+
+    return [
+      ...structuredTasks,
+      {
+        id: `review-${lesson.id}`,
+        kind: 'review',
+        title: 'Ôn lại nhẹ nhàng',
+        instruction: 'Mình nhìn lại phần cần ôn, không cần xem nhiều số liệu.',
+        reviewWords: uniqueValues(flaggedWords),
+        nextSuggestion: lesson.caregiverTip || 'Nghỉ một chút, rồi quay lại bài gợi ý ở trang chủ.',
+        completed,
+      },
+    ];
+  }
+
   const warmupWords = getWarmupWords(lesson);
   const firstWord = warmupWords[0];
   const firstWordText = cleanWord(firstWord.word);
@@ -413,6 +578,7 @@ export default function ReadingPracticeScreen() {
     answerQuestion,
     finishSession,
     restartLesson,
+    recordPracticeAnswer,
     speakText,
     stopSpeaking,
   } = useAppModel();
@@ -432,7 +598,7 @@ export default function ReadingPracticeScreen() {
     ],
   );
   const [taskIndex, setTaskIndex] = useState(0);
-  const [answerDrafts, setAnswerDrafts] = useState<Record<string, PracticeAnswerDraft>>({});
+  const [answerDrafts, setAnswerDrafts] = useState<Record<string, LocalPracticeAnswerDraft>>({});
 
   const tasks = useMemo(
     () => buildLessonTasks(lesson, readerPreferences, session.flaggedWords, session.completed),
@@ -472,21 +638,52 @@ export default function ReadingPracticeScreen() {
   );
 
   const handleAnswer = useCallback(
-    (draft: PracticeAnswerDraft) => {
+    (draft: LocalPracticeAnswerDraft) => {
+      const previousDraft = answerDrafts[draft.taskId];
+      const supportUsed = uniqueValues([...(previousDraft?.supportUsed ?? []), ...(draft.supportUsed ?? [])]);
+      const mergedDraft: LocalPracticeAnswerDraft = {
+        ...previousDraft,
+        ...draft,
+        supportUsed: supportUsed.length ? supportUsed : undefined,
+      };
+      const correctAnswer =
+        currentTask.correctAnswer ??
+        (currentTask.kind === 'comprehension' && currentTask.answerIndex !== undefined
+          ? currentTask.options?.[currentTask.answerIndex]
+          : currentTask.targetText);
+      const assumedCorrect =
+        mergedDraft.isCorrect ??
+        (currentTask.kind === 'read_word' || currentTask.kind === 'read_sentence' || currentTask.kind === 'review');
+
       setAnswerDrafts((previous) => ({
         ...previous,
-        [draft.taskId]: draft,
+        [draft.taskId]: mergedDraft,
       }));
 
-      if (currentTask.kind === 'comprehension' && currentTask.questionId && draft.selectedAnswer) {
-        const selectedIndex = (currentTask.options ?? []).findIndex((option) => option === draft.selectedAnswer);
+      if (currentTask.kind !== 'review') {
+        recordPracticeAnswer({
+          lessonId: lesson.id,
+          taskId: mergedDraft.taskId,
+          taskIndex,
+          taskType: currentTask.kind,
+          selectedAnswer: mergedDraft.selectedAnswer,
+          correctAnswer,
+          isCorrect: Boolean(assumedCorrect),
+          supportUsed: mergedDraft.supportUsed,
+          responseTimeMs: mergedDraft.responseTimeMs,
+          targetPattern: lesson.targetPattern,
+        });
+      }
+
+      if (currentTask.kind === 'comprehension' && currentTask.questionId && mergedDraft.selectedAnswer) {
+        const selectedIndex = (currentTask.options ?? []).findIndex((option) => option === mergedDraft.selectedAnswer);
 
         if (selectedIndex >= 0) {
           answerQuestion(currentTask.questionId, selectedIndex);
         }
       }
 
-      if (draft.supportUsed?.includes('flagged_word') && currentTask.targetText) {
+      if (mergedDraft.supportUsed?.includes('flagged_word') && currentTask.targetText) {
         const word = cleanWord(currentTask.targetText);
 
         if (word && !session.flaggedWords.includes(word)) {
@@ -494,7 +691,7 @@ export default function ReadingPracticeScreen() {
         }
       }
 
-      if (draft.supportUsed?.includes('flagged_sentence') && currentTask.sentence) {
+      if (mergedDraft.supportUsed?.includes('flagged_sentence') && currentTask.sentence) {
         const warmupSet = new Set(getWarmupWords(lesson).map((word) => cleanWord(word.word)));
         const wordsToFlag = currentTask.sentence
           .split(/\s+/)
@@ -504,7 +701,7 @@ export default function ReadingPracticeScreen() {
         uniqueValues(wordsToFlag).forEach(toggleFlaggedWord);
       }
     },
-    [answerQuestion, currentTask, lesson, session.flaggedWords, toggleFlaggedWord],
+    [answerDrafts, answerQuestion, currentTask, lesson, recordPracticeAnswer, session.flaggedWords, taskIndex, toggleFlaggedWord],
   );
 
   const allQuestionsAnswered = useMemo(() => {

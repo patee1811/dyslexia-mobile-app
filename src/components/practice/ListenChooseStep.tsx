@@ -32,6 +32,15 @@ export default function ListenChooseStep({
       responseTimeMs: Date.now() - startedAtRef.current,
     });
   };
+  const replay = () => {
+    onAnswer({
+      taskId: task.id,
+      isCorrect: true,
+      supportUsed: ['audio_replay'],
+      responseTimeMs: Date.now() - startedAtRef.current,
+    });
+    onReplayAudio?.(task.audioText ?? task.targetText ?? '');
+  };
 
   return (
     <View style={styles.container}>
@@ -39,7 +48,7 @@ export default function ListenChooseStep({
       <Text style={styles.title}>{task.title}</Text>
       <Text style={styles.instruction}>{task.instruction}</Text>
 
-      <PrimaryButton label="Nghe lại" onPress={() => onReplayAudio?.(task.audioText ?? task.targetText ?? '')} secondary />
+      <PrimaryButton label="Nghe lại" onPress={replay} secondary />
 
       <View style={styles.choiceList}>
         {choices.map((choice) => {

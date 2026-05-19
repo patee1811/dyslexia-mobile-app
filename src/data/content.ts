@@ -5,6 +5,8 @@ import type {
   PracticePreferences,
   ThemeOption,
 } from '../types';
+import { structuredLessons as structuredLessonData } from './structuredLessons';
+import type { LessonTask as StructuredLessonTask, StructuredLesson } from '../types/literacy';
 
 export { skillTree } from './skillTree';
 export { structuredLessons } from './structuredLessons';
@@ -55,11 +57,15 @@ export const defaultPreferences: PracticePreferences = {
   chunkSize: 1,
   focusMode: true,
   superFocus: false,
+  reduceMotion: false,
   showSyllables: false,
   themeId: 'sun',
   readerFont: 'default',
   letterSpacing: 0.2,
   azureVoice: 'vi-VN-HoaiMyNeural',
+  allowCloud: true,
+  speechRate: 'slow',
+  voiceMode: 'female',
 };
 
 export const baseLessons: Lesson[] = [
@@ -179,12 +185,120 @@ export const baseLessons: Lesson[] = [
   },
 ];
 
+const skillLabels: Record<StructuredLesson['targetSkills'][number], string> = {
+  phonological_awareness: 'Nhận biết âm thanh tiếng Việt',
+  sound_symbol: 'Nhận diện âm đầu và chữ ghi âm',
+  syllable_blending: 'Ghép âm/vần thành tiếng',
+  tone_discrimination: 'Phân biệt dấu thanh',
+  vietnamese_spelling_rule: 'Quy tắc chính tả tiếng Việt',
+  word_reading: 'Đọc từ',
+  sentence_fluency: 'Đọc câu ngắn lưu loát',
+  comprehension: 'Đọc hiểu',
+};
+
+function lessonDifficulty(level: number): Lesson['difficulty'] {
+  if (level <= 1) {
+    return 'foundation';
+  }
+
+  if (level <= 3) {
+    return 'building';
+  }
+
+  return 'stretch';
+}
+
+function taskText(task: StructuredLessonTask) {
+  switch (task.type) {
+    case 'listen_choose':
+      return task.answer;
+    case 'sound_to_letter':
+      return task.answer;
+    case 'blend_syllable':
+      return task.answer;
+    case 'tone_minimal_pair':
+      return task.answer;
+    case 'read_word':
+      return task.word;
+    case 'read_sentence':
+      return task.sentence;
+    case 'comprehension':
+      return task.question;
+    default:
+      return '';
+  }
+}
+
+function structuredLessonToLegacyLesson(lesson: StructuredLesson, index: number): Lesson {
+  const readWords = lesson.tasks.filter((task): task is Extract<StructuredLessonTask, { type: 'read_word' }> => task.type === 'read_word');
+  const readSentences = lesson.tasks.filter(
+    (task): task is Extract<StructuredLessonTask, { type: 'read_sentence' }> => task.type === 'read_sentence',
+  );
+  const comprehensionTasks = lesson.tasks.filter(
+    (task): task is Extract<StructuredLessonTask, { type: 'comprehension' }> => task.type === 'comprehension',
+  );
+  const fallbackWords = [...new Set(lesson.tasks.map(taskText).filter((text) => text && !text.includes(' ')))].slice(0, 3);
+  const warmupSource = readWords.length ? readWords : fallbackWords.map((word) => ({ word, supports: [], instruction: '' }));
+  const focusSkill = lesson.targetSkills.map((skill) => skillLabels[skill]).join(' + ');
+
+  return {
+    id: lesson.id,
+    title: lesson.title,
+    difficulty: lessonDifficulty(lesson.level),
+    topic: focusSkill,
+    estimatedMinutes: lesson.estimatedMinutes,
+    focusSkill,
+    coachGoal: `Luyện ${focusSkill.toLowerCase()} qua chuỗi nghe, ghép, đọc từ, đọc câu và hiểu bài.`,
+    warmup: warmupSource.slice(0, 4).map((task) => ({
+      word: task.word,
+      syllables: task.word,
+      cue: 'Nhìn kỹ mặt chữ, nghe mẫu nếu cần, rồi đọc lại chậm.',
+      example: task.supports?.[0] ?? lesson.caregiverTip,
+    })),
+    sentences: readSentences.length ? readSentences.map((task) => task.sentence) : [`Con luyện đọc tiếng ${fallbackWords[0] ?? 'mới'}.`],
+    questions: comprehensionTasks.map((task) => ({
+      id: task.id,
+      prompt: task.question,
+      options: task.options,
+      answerIndex: Math.max(0, task.options.findIndex((option) => option === task.answer)),
+      explanation: 'Câu hỏi kiểm tra ý chính của câu vừa đọc.',
+    })),
+    caregiverTip: lesson.caregiverTip,
+    createdBy: 'system',
+    targetSkills: lesson.targetSkills,
+    targetPattern: {
+      ...lesson.targetPattern,
+      key: lesson.id,
+      patternKey: lesson.id,
+      skill: lesson.targetSkills[0],
+      type: lesson.targetSkills[0],
+      value: lesson.targetPattern.contrastSet?.join('/') ?? lesson.title,
+    },
+    prerequisiteLessonIds: lesson.prerequisiteLessonIds,
+    prerequisites: lesson.prerequisiteLessonIds,
+    mastery: lesson.mastery,
+    structuredTasks: lesson.tasks,
+    safetyNote: lesson.safetyNote,
+    order: index,
+    sourceStructuredLessonId: lesson.id,
+  };
+}
+
+export const curriculumLessons: Lesson[] = [
+  ...structuredLessonData.map(structuredLessonToLegacyLesson),
+  ...baseLessons.map((lesson, index) => ({
+    ...lesson,
+    order: structuredLessonData.length + index,
+  })),
+];
+
 export const initialLearnerRecords: LearnerRecord[] = [
   {
     profile: {
       id: 'an',
       name: 'Bé An',
       age: 8,
+      region: 'north',
       readingLevel: 'Đang củng cố câu ngắn 2-3 dòng',
       weeklyGoal: 5,
       streakDays: 4,
@@ -275,6 +389,7 @@ export const initialLearnerRecords: LearnerRecord[] = [
       id: 'mai',
       name: 'Bé Mai',
       age: 9,
+      region: 'south',
       readingLevel: 'Đang luyện tốc độ với đoạn quen thuộc',
       weeklyGoal: 4,
       streakDays: 2,

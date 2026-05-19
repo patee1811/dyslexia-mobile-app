@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { defaultPreferences, initialLearnerRecords, baseLessons, themeOptions } from '../data/content';
+import { defaultPreferences, initialLearnerRecords, curriculumLessons, themeOptions } from '../data/content';
 import {
   buildFocusWords,
   buildRewardMessage,
@@ -178,6 +178,17 @@ function getRecommendationForRecord(record: LearnerRecord, lessons: Lesson[]) {
   return getRecommendation(lessons, record.lessonProgress, buildFocusWords(record.lessonProgress, record.history));
 }
 
+function mergeLessonCatalog(storedLessons?: Lesson[]) {
+  if (!storedLessons?.length) {
+    return curriculumLessons;
+  }
+
+  const curriculumIds = new Set(curriculumLessons.map((lesson) => lesson.id));
+  const customLessons = storedLessons.filter((lesson) => lesson.createdBy === 'caregiver' || !curriculumIds.has(lesson.id));
+
+  return [...curriculumLessons, ...customLessons];
+}
+
 function buildPracticeAnswerId(answer: Pick<PracticeAnswer, 'profileId' | 'lessonId' | 'taskId'>) {
   return `${answer.profileId}-${answer.lessonId}-${answer.taskId}`;
 }
@@ -243,13 +254,29 @@ function isAzureConfigured() {
   return Boolean(AZURE_SPEECH_KEY && AZURE_SPEECH_REGION);
 }
 
+function resolveSystemSpeechRate(mode: 'word' | 'sentence', preference: PracticePreferences['speechRate']) {
+  if (mode === 'word') {
+    return preference === 'very_slow' ? 0.58 : preference === 'normal' ? 0.82 : 0.7;
+  }
+
+  return preference === 'very_slow' ? 0.48 : preference === 'normal' ? 0.78 : 0.62;
+}
+
 function normalizeRecord(record: LearnerRecord): LearnerRecord {
   return {
     ...record,
+    profile: {
+      ...record.profile,
+      region: record.profile.region ?? 'north',
+    },
     preferences: {
       ...defaultPreferences,
       ...record.preferences,
       azureVoice: record.preferences.azureVoice ?? defaultPreferences.azureVoice,
+      allowCloud: record.preferences.allowCloud ?? defaultPreferences.allowCloud,
+      speechRate: record.preferences.speechRate ?? defaultPreferences.speechRate,
+      voiceMode: record.preferences.voiceMode ?? defaultPreferences.voiceMode,
+      reduceMotion: record.preferences.reduceMotion ?? defaultPreferences.reduceMotion,
     },
   };
 }
@@ -258,12 +285,14 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [activeProfileId, setActiveProfileId] = useState(initialLearnerRecords[0].profile.id);
   const [learnerRecords, setLearnerRecords] = useState<LearnerRecord[]>(initialLearnerRecords.map(normalizeRecord));
-  const [lessons, setLessons] = useState<Lesson[]>(baseLessons);
+  const [lessons, setLessons] = useState<Lesson[]>(curriculumLessons);
   const [practiceAnswers, setPracticeAnswers] = useState<PracticeAnswer[]>([]);
   const [skillMastery, setSkillMastery] = useState<SkillMastery[]>([]);
   const [speechState, setSpeechState] = useState<SpeechState>({ speaking: false, text: null });
   const [preferredVoice, setPreferredVoice] = useState<{ identifier?: string; label?: string }>({});
-  const [session, setSession] = useState<SessionState>(() => createSession(baseLessons[1]?.id ?? baseLessons[0].id));
+  const [session, setSession] = useState<SessionState>(() =>
+    createSession(curriculumLessons[0]?.id ?? 'tone-ngang-sac-01'),
+  );
   const soundRef = useRef<Audio.Sound | null>(null);
 
   useEffect(() => {
@@ -285,11 +314,12 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
         if (mounted) {
           setActiveProfileId(parsed.activeProfileId);
           setLearnerRecords(parsed.learnerRecords.map(normalizeRecord));
-          setLessons(parsed.lessons);
+          const nextLessons = mergeLessonCatalog(parsed.lessons);
+          setLessons(nextLessons);
           setPracticeAnswers(parsed.practiceAnswers ?? []);
           setSkillMastery(parsed.skillMastery ?? []);
           const firstRecord = parsed.learnerRecords.find((record) => record.profile.id === parsed.activeProfileId) ?? parsed.learnerRecords[0];
-          const recommendation = getRecommendationForRecord(firstRecord, parsed.lessons);
+          const recommendation = getRecommendationForRecord(firstRecord, nextLessons);
           setSession(createSession(recommendation.lessonId));
           setHydrated(true);
         }
@@ -427,7 +457,10 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
       }),
     [lessonSessionMetrics, structuredRecommendation],
   );
-  const currentAzureVoice = activeRecord.preferences.azureVoice || AZURE_SPEECH_VOICE;
+  const currentAzureVoice: PracticePreferences['azureVoice'] =
+    activeRecord.preferences.voiceMode === 'male'
+      ? 'vi-VN-NamMinhNeural'
+      : activeRecord.preferences.azureVoice || (AZURE_SPEECH_VOICE as PracticePreferences['azureVoice']);
 
   const updateActiveRecord = (updater: (record: LearnerRecord) => LearnerRecord) => {
     setLearnerRecords((previous) =>
@@ -493,6 +526,8 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
       preferences: {
         ...record.preferences,
         azureVoice: voice,
+        voiceMode: voice === 'vi-VN-NamMinhNeural' ? 'male' : 'female',
+        allowCloud: true,
       },
     }));
   };
@@ -825,7 +860,7 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
       Speech.speak(preparedText, {
         language: 'vi-VN',
         pitch: mode === 'word' ? 1.06 : 1.02,
-        rate: mode === 'word' ? 0.8 : 0.84,
+        rate: resolveSystemSpeechRate(mode, activeRecord.preferences.speechRate),
         voice: preferredVoice.identifier,
         onStart: () => {
           setSpeechState({
@@ -861,7 +896,7 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
     const run = async () => {
       await stopAllSpeechPlayback();
 
-      if (isAzureConfigured()) {
+      if (activeRecord.preferences.allowCloud && activeRecord.preferences.voiceMode !== 'system' && isAzureConfigured()) {
         try {
           const ttsUri = await synthesizeAzureSpeechToFile({
             text: preparedText,
@@ -917,7 +952,10 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
     setSpeechState({
       speaking: false,
       text: null,
-      voiceLabel: isAzureConfigured() ? `Azure ${AZURE_VOICE_LABELS[currentAzureVoice]}` : preferredVoice.label,
+      voiceLabel:
+        activeRecord.preferences.allowCloud && activeRecord.preferences.voiceMode !== 'system' && isAzureConfigured()
+          ? `Azure ${AZURE_VOICE_LABELS[currentAzureVoice]}`
+          : preferredVoice.label,
     });
   };
 

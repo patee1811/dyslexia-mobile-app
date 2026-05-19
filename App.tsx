@@ -5,6 +5,7 @@ import { AppModelProvider, useAppModel } from './src/context/AppModel';
 import CaregiverScreen from './src/screens/CaregiverScreen';
 import HciScreen from './src/screens/HciScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import PrivacyScreen from './src/screens/PrivacyScreen';
 import ReadingPracticeScreen from './src/screens/ReadingPracticeScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { colors } from './src/theme/colors';
@@ -24,6 +25,8 @@ function AppShell() {
         return <HciScreen />;
       case 'settings':
         return <SettingsScreen />;
+      case 'privacy':
+        return <PrivacyScreen />;
       case 'home':
       default:
         return <HomeScreen onOpenPractice={() => setActiveTab('practice')} onOpenCaregiver={() => setActiveTab('caregiver')} />;

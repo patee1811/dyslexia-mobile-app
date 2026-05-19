@@ -32,6 +32,7 @@ export type StructuredLesson = Lesson & {
     value?: string;
   };
   mastery?: unknown;
+  prerequisiteLessonIds?: string[];
   prerequisites?: string[];
   order?: number;
 };
@@ -53,11 +54,21 @@ function normalizeSkill(value?: string): LiteracySkill | undefined {
     return 'tone';
   }
 
-  if (normalized.includes('onset') || normalized.includes('am dau') || normalized.includes('âm đầu')) {
+  if (
+    normalized.includes('onset') ||
+    normalized.includes('sound_symbol') ||
+    normalized.includes('am dau') ||
+    normalized.includes('âm đầu')
+  ) {
     return 'onset';
   }
 
-  if (normalized.includes('rime') || normalized.includes('van') || normalized.includes('vần')) {
+  if (
+    normalized.includes('rime') ||
+    normalized.includes('syllable_blending') ||
+    normalized.includes('van') ||
+    normalized.includes('vần')
+  ) {
     return 'rime';
   }
 
@@ -69,7 +80,7 @@ function normalizeSkill(value?: string): LiteracySkill | undefined {
     return 'comprehension';
   }
 
-  if (normalized.includes('word') || normalized.includes('tu')) {
+  if (normalized.includes('word') || normalized.includes('spelling') || normalized.includes('chinh ta') || normalized.includes('tu')) {
     return 'word';
   }
 

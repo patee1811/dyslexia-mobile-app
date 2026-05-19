@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useAppModel } from '../../context/AppModel';
+import { themeOptions } from '../../data/content';
 import type { PracticePreferences } from '../../types';
 import type { SpeakRate, VoiceMode } from '../../lib/tts';
 
@@ -53,6 +54,11 @@ const RATE_OPTIONS: Option<SpeakRate>[] = [
     { label: 'Vừa', value: 'normal' },
 ];
 
+const THEME_OPTIONS: Option<PracticePreferences['themeId']>[] = themeOptions.map((theme) => ({
+    label: theme.name,
+    value: theme.id,
+}));
+
 export default function ReaderSettingsPanel({ style }: Props) {
     const { activeRecord, updatePreferences, setAzureVoice, currentTheme } = useAppModel();
     const preferences = activeRecord.preferences as ExtendedPreferences;
@@ -70,6 +76,13 @@ export default function ReaderSettingsPanel({ style }: Props) {
     const handleVoiceMode = (value: VoiceMode) => {
         updatePreference('voiceMode', value);
 
+        if (value === 'system') {
+            updatePreference('allowCloud', false);
+            return;
+        }
+
+        updatePreference('allowCloud', true);
+
         if (value === 'female') {
             setAzureVoice('vi-VN-HoaiMyNeural');
         }
@@ -79,14 +92,22 @@ export default function ReaderSettingsPanel({ style }: Props) {
         }
     };
 
+    const handleCloudTts = (value: boolean) => {
+        updatePreference('allowCloud', value);
+
+        if (value && voiceMode === 'system') {
+            handleVoiceMode('female');
+        }
+    };
+
     return (
         <View style={[styles.panel, { backgroundColor: currentTheme.surface, borderColor: currentTheme.border }, style]}>
-            <Text style={[styles.title, { color: currentTheme.text }]}>Cai dat doc</Text>
-            <Text style={[styles.helper, { color: currentTheme.subtext }]}>Chon kieu hien thi de doc nhat voi con.</Text>
+            <Text style={[styles.title, { color: currentTheme.text }]}>Cài đặt đọc</Text>
+            <Text style={[styles.helper, { color: currentTheme.subtext }]}>Chọn kiểu hiển thị dễ đọc nhất với con.</Text>
 
             <SettingGroup
-                title="Co chu"
-                description="Giup tre thay chu ro rang hon."
+                title="Cỡ chữ"
+                description="Giúp trẻ thấy chữ rõ hơn."
                 options={FONT_SCALE_OPTIONS}
                 value={preferences.fontScale}
                 onChange={(next) => updatePreference('fontScale', next)}
@@ -94,8 +115,8 @@ export default function ReaderSettingsPanel({ style }: Props) {
             />
 
             <SettingGroup
-                title="Khoang cach dong"
-                description="Rong dong giup mat de theo doi."
+                title="Khoảng dòng"
+                description="Dòng rộng giúp mắt dễ theo dõi hơn."
                 options={LINE_SPACING_OPTIONS}
                 value={preferences.lineSpacing}
                 onChange={(next) => updatePreference('lineSpacing', next)}
@@ -103,33 +124,58 @@ export default function ReaderSettingsPanel({ style }: Props) {
             />
 
             <SettingGroup
-                title="Khoang cach chu"
-                description="Tang khoang cach de giam nhiu mat."
+                title="Khoảng chữ"
+                description="Tăng khoảng cách để giảm nhiễu thị giác."
                 options={LETTER_SPACING_OPTIONS}
                 value={preferences.letterSpacing}
                 onChange={(next) => updatePreference('letterSpacing', next)}
                 theme={currentTheme}
             />
 
+            <SettingGroup
+                title="Nền đọc"
+                description="Chọn nền dịu, tương phản vừa đủ."
+                options={THEME_OPTIONS}
+                value={preferences.themeId}
+                onChange={(next) => updatePreference('themeId', next)}
+                theme={currentTheme}
+            />
+
             <ToggleRow
                 title="Focus line"
-                description="Lam noi bat dong dang doc."
+                description="Làm nổi bật dòng đang đọc."
                 value={preferences.focusMode}
                 onChange={(next) => updatePreference('focusMode', next)}
                 theme={currentTheme}
             />
 
             <ToggleRow
+                title="Super focus"
+                description="Làm mờ phần xung quanh câu đang đọc."
+                value={preferences.superFocus}
+                onChange={(next) => updatePreference('superFocus', next)}
+                theme={currentTheme}
+            />
+
+            <ToggleRow
+                title="Giảm chuyển động"
+                description="Giữ giao diện ổn định hơn trong lúc luyện."
+                value={preferences.reduceMotion}
+                onChange={(next) => updatePreference('reduceMotion', next)}
+                theme={currentTheme}
+            />
+
+            <ToggleRow
                 title="Cloud TTS"
-                description="Bat de dung giong doc tren cloud khi co mang."
+                description="Bật để dùng giọng đọc trên cloud khi có mạng."
                 value={allowCloud}
-                onChange={(next) => updatePreference('allowCloud', next)}
+                onChange={handleCloudTts}
                 theme={currentTheme}
             />
 
             <SettingGroup
-                title="Giong doc"
-                description={allowCloud ? 'Chon giong doc phu hop voi tre.' : 'Dang dung giong he thong vi Cloud TTS dang tat.'}
+                title="Giọng đọc"
+                description={allowCloud ? 'Chọn giọng đọc phù hợp với trẻ.' : 'Đang dùng giọng hệ thống vì Cloud TTS đang tắt.'}
                 options={VOICE_MODE_OPTIONS}
                 value={allowCloud ? voiceMode : 'system'}
                 onChange={handleVoiceMode}
@@ -138,8 +184,8 @@ export default function ReaderSettingsPanel({ style }: Props) {
             />
 
             <SettingGroup
-                title="Toc do doc"
-                description="Chon toc do de tre nghe ro tung tu."
+                title="Tốc độ đọc"
+                description="Chọn tốc độ để trẻ nghe rõ từng từ."
                 options={RATE_OPTIONS}
                 value={speechRate}
                 onChange={(next) => updatePreference('speechRate', next)}
@@ -220,18 +266,18 @@ function ToggleRow({ title, description, value, onChange, theme }: ToggleRowProp
             <Text style={[styles.groupDesc, { color: theme.subtext }]}>{description}</Text>
             <View style={styles.optionRow}>
                 <OptionButton
-                    label="Bat"
+                    label="Bật"
                     selected={value}
                     onPress={() => onChange(true)}
                     theme={theme}
-                    accessibilityLabel={`${title}: Bat`}
+                    accessibilityLabel={`${title}: Bật`}
                 />
                 <OptionButton
-                    label="Tat"
+                    label="Tắt"
                     selected={!value}
                     onPress={() => onChange(false)}
                     theme={theme}
-                    accessibilityLabel={`${title}: Tat`}
+                    accessibilityLabel={`${title}: Tắt`}
                 />
             </View>
         </View>

@@ -8,6 +8,7 @@ type Props = {
   secondary?: boolean;
   compact?: boolean;
   disabled?: boolean;
+  accessibilityHint?: string;
 };
 
 export default function PrimaryButton({
@@ -16,10 +17,15 @@ export default function PrimaryButton({
   secondary = false,
   compact = false,
   disabled = false,
+  accessibilityHint,
 }: Props) {
   return (
     <Pressable
+      accessible
       accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
