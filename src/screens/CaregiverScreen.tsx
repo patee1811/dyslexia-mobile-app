@@ -1,10 +1,17 @@
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import PrimaryButton from '../components/PrimaryButton';
-import ProgressBar from '../components/ProgressBar';
 import SectionCard from '../components/SectionCard';
+import CustomLessonValidatorCard from '../components/caregiver/CustomLessonValidatorCard';
+import ErrorSummaryCard from '../components/caregiver/ErrorSummaryCard';
+import NextLessonCard from '../components/caregiver/NextLessonCard';
+import SkillMasteryCard from '../components/caregiver/SkillMasteryCard';
+import WeeklyProgressCard from '../components/caregiver/WeeklyProgressCard';
+import ProfileCard from '../components/profile/ProfileCard';
 import { useAppModel } from '../context/AppModel';
 import { formatSessionDate } from '../lib/coach';
+import { validateCustomLessonDraft } from '../lib/customLesson';
+import type { Lesson, LessonProgress, SessionHistoryEntry } from '../types';
 
 type Props = {
   onOpenPractice: () => void;
@@ -15,7 +22,6 @@ export default function CaregiverScreen({ onOpenPractice }: Props) {
     activeRecord,
     currentTheme,
     lessons,
-    weeklyStats,
     recommendation,
     focusWords,
     shortReport,
@@ -23,6 +29,7 @@ export default function CaregiverScreen({ onOpenPractice }: Props) {
     addCaregiverNote,
     addLesson,
   } = useAppModel();
+
   const [noteDraft, setNoteDraft] = useState('');
   const [lessonTitle, setLessonTitle] = useState('');
   const [lessonTopic, setLessonTopic] = useState('');
@@ -32,8 +39,19 @@ export default function CaregiverScreen({ onOpenPractice }: Props) {
 
   const { profile, history, lessonProgress, notes } = activeRecord;
   const latestSession = history[0];
-  const averageAccuracy =
-    history.length === 0 ? 0 : history.reduce((sum, entry) => sum + entry.accuracy, 0) / history.length;
+  const recommendedLesson = lessons.find((lesson) => lesson.id === recommendation.lessonId);
+
+  const lessonValidation = validateCustomLessonDraft({
+    title: lessonTitle,
+    text: lessonSentences,
+    focusSkill: lessonFocus,
+    childReadingLevel: profile.readingLevel,
+  });
+
+  const actionSummary = useMemo(
+    () => buildActionSummary(history, focusWords, recommendedLesson),
+    [focusWords, history, recommendedLesson],
+  );
 
   const submitNote = () => {
     addCaregiverNote(noteDraft);
@@ -41,6 +59,11 @@ export default function CaregiverScreen({ onOpenPractice }: Props) {
   };
 
   const submitLesson = () => {
+    if (!lessonValidation.isValid) {
+      Alert.alert('Bài chưa phù hợp', 'Vui lòng sửa các cảnh báo trước khi tạo bài.');
+      return;
+    }
+
     addLesson({
       title: lessonTitle,
       topic: lessonTopic || 'Chủ đề mới',
@@ -57,63 +80,51 @@ export default function CaregiverScreen({ onOpenPractice }: Props) {
 
   return (
     <ScrollView style={{ backgroundColor: currentTheme.background }} contentContainerStyle={styles.content}>
+      <ProfileCard
+        name={profile.name}
+        age={profile.age}
+        readingLevel={profile.readingLevel}
+        supportNeeds={profile.supportNeeds}
+        strengths={profile.strengths}
+        interests={profile.interests}
+        weeklyGoal={profile.weeklyGoal}
+      />
+
       <SectionCard
-        title="Bảng theo dõi phụ huynh / giáo viên"
-        subtitle="Dữ liệu ở đây được lưu thật trên máy và tách riêng theo từng hồ sơ người học."
+        title="Tuần này cần ưu tiên"
+        subtitle="Dashboard chỉ đưa gợi ý hỗ trợ luyện đọc, không dùng để chẩn đoán."
         style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}
       >
-        <Text style={[styles.heroName, { color: currentTheme.text }]}>
-          {profile.name} • mục tiêu {profile.weeklyGoal} buổi / tuần
-        </Text>
-        <ProgressBar progress={Math.min(history.length / profile.weeklyGoal, 1)} fillColor={currentTheme.accent} />
-        <Text style={[styles.note, { color: currentTheme.subtext }]}>
-          Độ chính xác trung bình gần đây: {Math.round(averageAccuracy * 100)}%. Điểm thưởng tích lũy: {profile.rewardPoints}.
-        </Text>
-        <PrimaryButton
-          label={`Mở lại bài gợi ý: ${recommendation.title}`}
-          onPress={() => {
-            startLesson(recommendation.lessonId);
-            onOpenPractice();
-          }}
-        />
+        {actionSummary.map((item) => (
+          <Text key={item} style={[styles.actionLine, { color: currentTheme.text }]}>
+            {item}
+          </Text>
+        ))}
       </SectionCard>
 
-      <SectionCard title="Báo cáo ngắn ngay trong app" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
-        <View style={[styles.reportBox, { backgroundColor: '#FFFDF8', borderColor: currentTheme.border }]}>
-          <Text style={[styles.reportText, { color: currentTheme.text }]}>{shortReport}</Text>
-        </View>
-      </SectionCard>
+      <SkillMasteryCard skills={buildSkillMastery(lessons, lessonProgress)} />
 
-      <SectionCard title="Tóm tắt tuần này" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
-        <View style={styles.statsGrid}>
-          {weeklyStats.map((item) => (
-            <View key={item.label} style={[styles.statCard, { backgroundColor: '#FFFDF8', borderColor: currentTheme.border }]}>
-              <Text style={[styles.smallText, { color: currentTheme.subtext }]}>{item.label}</Text>
-              <Text style={[styles.statValue, { color: currentTheme.text }]}>{item.value}</Text>
-              <Text style={[styles.note, { color: currentTheme.accent }]}>{item.note}</Text>
-            </View>
-          ))}
-        </View>
-      </SectionCard>
+      <ErrorSummaryCard errors={buildErrorSummary(history)} />
 
-      <SectionCard title="Từ cần ưu tiên ôn lại" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
-        <View style={styles.chips}>
-          {focusWords.length === 0 ? (
-            <Text style={[styles.note, { color: currentTheme.subtext }]}>Chưa có từ nào cần ưu tiên.</Text>
-          ) : (
-            focusWords.map((word) => (
-              <View key={word} style={[styles.wordChip, { backgroundColor: currentTheme.accentSoft }]}>
-                <Text style={[styles.wordChipText, { color: currentTheme.accent }]}>{word}</Text>
-              </View>
-            ))
-          )}
-        </View>
-        <Text style={[styles.note, { color: currentTheme.subtext }]}>
-          Đây là phần adaptive interaction: từ nào bị đánh dấu lặp lại sẽ được ưu tiên trong gợi ý bài sau.
-        </Text>
-      </SectionCard>
+      <NextLessonCard
+        title={recommendation.title}
+        reason={recommendation.reason}
+        difficulty={recommendedLesson?.difficulty ?? 'building'}
+        focusSkill={recommendedLesson?.focusSkill}
+        estimatedMinutes={recommendedLesson?.estimatedMinutes}
+        onPress={() => {
+          startLesson(recommendation.lessonId);
+          onOpenPractice();
+        }}
+      />
 
-      <SectionCard title="Thêm ghi chú sau buổi học" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
+      <WeeklyProgressCard weekData={buildWeekData(history)} weekGoal={Math.max(profile.weeklyGoal * 8, 1)} />
+
+      <SectionCard
+        title="Ghi chú của phụ huynh/giáo viên"
+        subtitle="Ghi lại quan sát ngắn sau buổi học để chuẩn bị hỗ trợ lần sau."
+        style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}
+      >
         <TextInput
           value={noteDraft}
           onChangeText={setNoteDraft}
@@ -140,7 +151,11 @@ export default function CaregiverScreen({ onOpenPractice }: Props) {
         </View>
       </SectionCard>
 
-      <SectionCard title="Phụ huynh tự thêm bài đọc" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
+      <SectionCard
+        title="Tạo bài luyện tùy chỉnh"
+        subtitle="Validator giúp giữ bài ngắn, rõ mục tiêu và phù hợp mức đọc của trẻ."
+        style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}
+      >
         <TextInput
           value={lessonTitle}
           onChangeText={setLessonTitle}
@@ -158,7 +173,7 @@ export default function CaregiverScreen({ onOpenPractice }: Props) {
         <TextInput
           value={lessonFocus}
           onChangeText={setLessonFocus}
-          placeholder="Kỹ năng muốn luyện"
+          placeholder="Kỹ năng muốn luyện, ví dụ: dấu sắc/nặng"
           placeholderTextColor={currentTheme.subtext}
           style={[styles.input, { backgroundColor: '#FFFDF8', borderColor: currentTheme.border, color: currentTheme.text }]}
         />
@@ -184,10 +199,27 @@ export default function CaregiverScreen({ onOpenPractice }: Props) {
           placeholderTextColor={currentTheme.subtext}
           style={[styles.input, { backgroundColor: '#FFFDF8', borderColor: currentTheme.border, color: currentTheme.text }]}
         />
-        <PrimaryButton label="Tạo bài đọc mới" onPress={submitLesson} disabled={!lessonTitle.trim() || !lessonSentences.trim()} />
+        <CustomLessonValidatorCard warnings={lessonValidation.warnings} isValid={lessonValidation.isValid} />
+        <PrimaryButton
+          label="Tạo bài đọc mới"
+          onPress={submitLesson}
+          disabled={!lessonTitle.trim() || !lessonSentences.trim() || !lessonValidation.isValid}
+        />
       </SectionCard>
 
-      <SectionCard title="Tiến độ theo bài đọc" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
+      <SectionCard
+        title="Báo cáo ngắn"
+        style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}
+      >
+        <View style={[styles.reportBox, { backgroundColor: '#FFFDF8', borderColor: currentTheme.border }]}>
+          <Text style={[styles.reportText, { color: currentTheme.text }]}>{shortReport}</Text>
+        </View>
+      </SectionCard>
+
+      <SectionCard
+        title="Tiến độ theo bài đọc"
+        style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}
+      >
         {lessons.map((lesson) => {
           const progress = lessonProgress.find((entry) => entry.lessonId === lesson.id);
 
@@ -196,7 +228,7 @@ export default function CaregiverScreen({ onOpenPractice }: Props) {
               <Text style={[styles.progressTitle, { color: currentTheme.text }]}>{lesson.title}</Text>
               <Text style={[styles.note, { color: currentTheme.subtext }]}>{lesson.focusSkill}</Text>
               <Text style={[styles.smallText, { color: currentTheme.text }]}>
-                {progress?.attempts ?? 0} lần luyện • tốt nhất {Math.round((progress?.bestAccuracy ?? 0) * 100)}%
+                {progress?.attempts ?? 0} lần luyện - tốt nhất {Math.round((progress?.bestAccuracy ?? 0) * 100)}%
               </Text>
               <Text style={[styles.smallText, { color: currentTheme.accent }]}>
                 {progress?.flaggedWords.length ? `Từ cần ôn: ${progress.flaggedWords.join(', ')}` : 'Chưa có từ bị đánh dấu nhiều.'}
@@ -206,7 +238,10 @@ export default function CaregiverScreen({ onOpenPractice }: Props) {
         })}
       </SectionCard>
 
-      <SectionCard title="Lịch sử buổi học gần nhất" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
+      <SectionCard
+        title="Lịch sử buổi học gần nhất"
+        style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}
+      >
         {history.map((entry) => (
           <View key={entry.id} style={[styles.historyRow, { borderColor: currentTheme.border }]}>
             <View style={styles.historyMain}>
@@ -222,24 +257,126 @@ export default function CaregiverScreen({ onOpenPractice }: Props) {
         ))}
       </SectionCard>
 
-      <SectionCard title="Khuyến nghị can thiệp nhẹ" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
-        <Text style={[styles.note, { color: currentTheme.text }]}>
-          1. Bắt đầu bằng bài {recommendation.title} vì đây là bài phù hợp nhất với mức hỗ trợ hiện tại.
-        </Text>
-        <Text style={[styles.note, { color: currentTheme.text }]}>
-          2. Sau buổi đọc, yêu cầu trẻ kể lại 1 ý chính thay vì đọc lại toàn văn để giảm áp lực.
-        </Text>
-        <Text style={[styles.note, { color: currentTheme.text }]}>
-          3. Nếu trẻ dừng quá lâu ở một từ, cho nghe mẫu từng câu rồi quay lại đọc cùng nhịp chậm.
+      <View style={styles.disclaimerBox}>
+        <Text style={styles.disclaimerTitle}>Lưu ý quan trọng</Text>
+        <Text style={styles.disclaimerText}>
+          Ứng dụng này được thiết kế để hỗ trợ trẻ luyện đọc dưới sự hướng dẫn của phụ huynh hoặc giáo viên.
+          Ứng dụng không chẩn đoán rối loạn đọc và không thay thế chuyên gia. Nếu gia đình lo lắng về khả
+          năng đọc của trẻ, hãy trao đổi với giáo viên, nhà tâm lý học hoặc chuyên gia âm ngữ trị liệu.
         </Text>
         {latestSession ? (
-          <Text style={[styles.note, { color: currentTheme.accent }]}>
-            Buổi gần nhất: {latestSession.lessonTitle} với {Math.round(latestSession.accuracy * 100)}% độ chính xác và {latestSession.fluencyRating}/5 độ lưu loát.
+          <Text style={styles.disclaimerText}>
+            Buổi gần nhất: {latestSession.lessonTitle}, {Math.round(latestSession.accuracy * 100)}% chính xác,
+            mức lưu loát {latestSession.fluencyRating}/5.
           </Text>
         ) : null}
-      </SectionCard>
+      </View>
     </ScrollView>
   );
+}
+
+function buildActionSummary(history: SessionHistoryEntry[], focusWords: string[], lesson?: Lesson) {
+  const errorSummary = buildErrorSummary(history);
+  const topError = errorSummary[0];
+
+  return [
+    topError ? `- ${topError.type}: xuất hiện ${topError.count} lần.` : '- Kỹ năng đọc ổn hơn, tiếp tục luyện ngắn mỗi ngày.',
+    focusWords.length ? `- Từ/vần cần nghe lại: ${focusWords.slice(0, 4).join(', ')}.` : '- Chưa có từ nào cần ưu tiên đặc biệt.',
+    lesson ? `- Bài nên học tiếp: ${lesson.title}.` : '- Chọn một bài ngắn, quen thuộc để giữ nhịp luyện.',
+    '- Nếu câu dài làm trẻ dừng lâu, hãy chia thành 2 câu ngắn hơn.',
+  ];
+}
+
+function buildSkillMastery(lessons: Lesson[], progress: LessonProgress[]) {
+  return lessons.slice(0, 4).map((lesson) => {
+    const lessonProgress = progress.find((entry) => entry.lessonId === lesson.id);
+    const attempts = lessonProgress?.attempts ?? 0;
+    const masteryPercent = Math.round((lessonProgress?.bestAccuracy ?? 0) * 100);
+
+    return {
+      name: lesson.focusSkill,
+      status:
+        attempts === 0
+          ? ('not-started' as const)
+          : masteryPercent >= 82
+            ? ('stable' as const)
+            : masteryPercent >= 60
+              ? ('in-practice' as const)
+              : ('needs-review' as const),
+      masteryPercent: attempts === 0 ? 0 : masteryPercent,
+    };
+  });
+}
+
+function buildErrorSummary(history: SessionHistoryEntry[]) {
+  const counts = new Map<string, { count: number; examples: string[] }>();
+
+  history.slice(0, 4).forEach((entry) => {
+    entry.flaggedWords.forEach((word) => {
+      const key = classifyWord(word);
+      const current = counts.get(key) ?? { count: 0, examples: [] };
+      counts.set(key, {
+        count: current.count + 1,
+        examples: current.examples.includes(word) ? current.examples : [...current.examples, word],
+      });
+    });
+  });
+
+  return Array.from(counts.entries())
+    .sort((left, right) => right[1].count - left[1].count)
+    .slice(0, 3)
+    .map(([type, value]) => ({
+      type,
+      count: value.count,
+      examples: value.examples,
+      suggestion: suggestionForError(type),
+    }));
+}
+
+function classifyWord(word: string) {
+  if (/[áắấéếíóốớúứý]/i.test(word) || /[ạặậẹệịọộợụựỵ]/i.test(word)) {
+    return 'Sai dấu thanh';
+  }
+
+  if (/(an|ang|in|inh|on|ong|ên|ênh)$/i.test(word)) {
+    return 'Nhầm vần gần nhau';
+  }
+
+  return 'Từ cần nghe lại';
+}
+
+function suggestionForError(type: string) {
+  if (type === 'Sai dấu thanh') {
+    return 'Cho con nghe lại từng cặp nắng/nặng, lá/lạ trước khi đọc câu. Hỏi nhẹ: âm cao hay thấp?';
+  }
+
+  if (type === 'Nhầm vần gần nhau') {
+    return 'Đọc chậm từng cặp vần như an/ang, in/inh rồi mới đặt vào câu ngắn.';
+  }
+
+  return 'Cho con chạm vào từ để nghe mẫu, sau đó đọc lại trong một câu ngắn quen thuộc.';
+}
+
+function buildWeekData(history: SessionHistoryEntry[]) {
+  const data = Array.from({ length: 7 }, (_, index) => ({
+    day: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][index],
+    minutes: 0,
+    lessonsCompleted: 0,
+    accuracy: undefined as number | undefined,
+  }));
+
+  history.forEach((entry) => {
+    const date = new Date(entry.date);
+    const dayOfWeek = date.getDay();
+    const adjustedIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    if (adjustedIndex >= 0 && adjustedIndex < 7) {
+      data[adjustedIndex].minutes += entry.minutes;
+      data[adjustedIndex].lessonsCompleted += 1;
+      data[adjustedIndex].accuracy = entry.accuracy * 100;
+    }
+  });
+
+  return data;
 }
 
 const styles = StyleSheet.create({
@@ -248,10 +385,10 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingBottom: 32,
   },
-  heroName: {
-    fontSize: 24,
-    fontWeight: '900',
-    lineHeight: 30,
+  actionLine: {
+    fontSize: 15,
+    lineHeight: 23,
+    fontWeight: '700',
   },
   note: {
     fontSize: 14,
@@ -266,36 +403,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
   },
-  statsGrid: {
-    gap: 10,
-  },
-  statCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 14,
-    gap: 4,
-  },
   smallText: {
     fontSize: 13,
     fontWeight: '700',
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: '900',
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  wordChip: {
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  wordChipText: {
-    fontSize: 13,
-    fontWeight: '800',
   },
   input: {
     minHeight: 48,
@@ -354,5 +464,24 @@ const styles = StyleSheet.create({
   scoreValue: {
     fontSize: 24,
     fontWeight: '900',
+  },
+  disclaimerBox: {
+    backgroundColor: '#F0F8FF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#CCDDFF',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  disclaimerTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1976D2',
+  },
+  disclaimerText: {
+    fontSize: 12,
+    color: '#333',
+    lineHeight: 18,
   },
 });
