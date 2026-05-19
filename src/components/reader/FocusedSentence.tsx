@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../../theme/colors';
 import type { WarmupWord } from '../../types';
@@ -24,6 +24,7 @@ export default function FocusedSentence({
   flaggedWords = [],
   onWordPress,
 }: Props) {
+  const [focusedWordIndex, setFocusedWordIndex] = useState<number | null>(null);
   const words = sentence.split(/\s+/).filter(Boolean);
 
   return (
@@ -40,19 +41,26 @@ export default function FocusedSentence({
           const normalizedWord = cleanWord(rawWord);
           const flagged = flaggedWords.includes(normalizedWord);
           const warmupWord = warmupWords.find((item) => item.word === normalizedWord);
+          const focused = focusedWordIndex === index;
 
           return (
             <Pressable
               key={`${rawWord}-${index}`}
               accessibilityRole="button"
-              onPress={() => onWordPress?.(normalizedWord)}
+              accessibilityLabel={`Nghe từ ${normalizedWord}`}
+              accessibilityState={{ selected: focused }}
+              onPress={() => {
+                setFocusedWordIndex(index);
+                onWordPress?.(normalizedWord);
+              }}
               style={({ pressed }) => [
                 styles.wordChip,
                 flagged && styles.flaggedWordChip,
+                focused && styles.focusedWordChip,
                 pressed && styles.pressed,
               ]}
             >
-              <ReadableText text={rawWord} preferences={preferences} size="word" style={styles.wordText} />
+              <ReadableText text={rawWord} preferences={preferences} size="word" style={[styles.wordText, focused && styles.focusedWordText]} />
               {preferences.showSyllables && warmupWord ? <Text style={styles.syllableText}>{warmupWord.syllables}</Text> : null}
             </Pressable>
           );
@@ -114,11 +122,19 @@ const styles = StyleSheet.create({
     borderColor: '#E3B596',
     backgroundColor: colors.accentSoft,
   },
+  focusedWordChip: {
+    borderColor: colors.teal,
+    backgroundColor: colors.tealSoft,
+    transform: [{ scale: 1.02 }],
+  },
   pressed: {
     opacity: 0.85,
   },
   wordText: {
     color: colors.ink,
+  },
+  focusedWordText: {
+    color: colors.teal,
   },
   syllableText: {
     color: colors.accent,

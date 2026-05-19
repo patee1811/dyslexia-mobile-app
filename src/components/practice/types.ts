@@ -16,6 +16,10 @@ export type PracticeTaskKind =
   | 'read_word'
   | 'read_sentence'
   | 'comprehension'
+  | 'dictation_spelling'
+  | 'match_word_meaning'
+  | 'story_retell'
+  | 'personalized_review'
   | 'review';
 
 export type BlendParts = {
@@ -47,6 +51,10 @@ export type LessonTask = {
   parts?: BlendParts;
   choiceDetails?: ChoiceDetail[];
   prompt?: string;
+  audioPrompt?: string;
+  imageLabel?: string;
+  story?: string;
+  minWords?: number;
   options?: string[];
   answerIndex?: number;
   explanation?: string;

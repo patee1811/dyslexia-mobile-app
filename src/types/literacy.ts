@@ -79,6 +79,39 @@ export type LessonTask =
       options: string[];
       answer: string;
       instruction: string;
+    }
+  | {
+      id: string;
+      type: 'dictation_spelling';
+      promptText: string;
+      audioText: string;
+      answer: string;
+      options?: string[];
+      instruction: string;
+    }
+  | {
+      id: string;
+      type: 'match_word_meaning';
+      word: string;
+      imageLabel: string;
+      options: string[];
+      answer: string;
+      instruction: string;
+    }
+  | {
+      id: string;
+      type: 'story_retell';
+      story: string;
+      promptText: string;
+      minWords: number;
+      instruction: string;
+    }
+  | {
+      id: string;
+      type: 'personalized_review';
+      promptText: string;
+      fallbackItems: string[];
+      instruction: string;
     };
 
 export type StructuredLesson = {

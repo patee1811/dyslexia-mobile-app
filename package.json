@@ -11,6 +11,7 @@
     "preweb": "node ./scripts/check-node.js",
     "test:logic": "tsx ./scripts/test-coach.ts",
     "start": "expo start",
+    "backend": "node ./server/index.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web"

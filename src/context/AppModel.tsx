@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Linking, Platform } from 'react-native';
 import { defaultPreferences, initialLearnerRecords, curriculumLessons, themeOptions } from '../data/content';
 import {
   buildFocusWords,
@@ -34,6 +35,7 @@ import type {
 } from '../types/progress';
 import type {
   CaregiverNote,
+  AuthUser,
   LearnerRecord,
   Lesson,
   LessonDraft,
@@ -43,9 +45,11 @@ import type {
 } from '../types';
 
 const STORAGE_KEY = 'dyslexia-mobile-app:v2';
+const AUTH_TOKEN_KEY = 'dyslexia-mobile-app:auth-token';
 const AZURE_SPEECH_KEY = process.env.EXPO_PUBLIC_AZURE_SPEECH_KEY?.trim();
 const AZURE_SPEECH_REGION = process.env.EXPO_PUBLIC_AZURE_SPEECH_REGION?.trim();
 const AZURE_SPEECH_VOICE = process.env.EXPO_PUBLIC_AZURE_SPEECH_VOICE?.trim() || 'vi-VN-HoaiMyNeural';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || 'http://localhost:4000';
 
 type PersistedState = {
   activeProfileId: string;
@@ -80,6 +84,12 @@ type AppModelValue = {
   structuredRecommendation: StructuredLessonRecommendation;
   lessonSessionMetrics: LessonSessionMetrics;
   caregiverInsights: string[];
+  authUser: AuthUser | null;
+  authLoading: boolean;
+  authError: string | null;
+  signInWithGoogle: () => Promise<void>;
+  signOut: () => Promise<void>;
+  continueAsGuest: () => void;
   setActiveProfile: (profileId: string) => void;
   startLesson: (lessonId?: string) => void;
   selectLesson: (lessonId: string) => void;
@@ -189,6 +199,59 @@ function mergeLessonCatalog(storedLessons?: Lesson[]) {
   return [...curriculumLessons, ...customLessons];
 }
 
+function apiUrl(path: string) {
+  return `${API_BASE_URL.replace(/\/$/, '')}${path}`;
+}
+
+function parseQuery(search: string) {
+  const query = search.startsWith('?') ? search.slice(1) : search;
+  return query.split('&').reduce<Record<string, string>>((params, pair) => {
+    if (!pair) {
+      return params;
+    }
+
+    const [rawKey, rawValue = ''] = pair.split('=');
+    params[decodeURIComponent(rawKey)] = decodeURIComponent(rawValue.replace(/\+/g, ' '));
+    return params;
+  }, {});
+}
+
+function readWebAuthRedirect() {
+  if (Platform.OS !== 'web') {
+    return {};
+  }
+
+  const globalScope = globalThis as typeof globalThis & {
+    location?: { search?: string; pathname?: string };
+    history?: { replaceState?: (data: unknown, unused: string, url?: string) => void };
+  };
+  const params = parseQuery(globalScope.location?.search ?? '');
+
+  if (params.authToken || params.authError) {
+    globalScope.history?.replaceState?.(null, '', globalScope.location?.pathname ?? '/');
+  }
+
+  return {
+    authToken: params.authToken,
+    authError: params.authError,
+  };
+}
+
+async function loadAuthUser(token: string): Promise<AuthUser> {
+  const response = await fetch(apiUrl('/api/auth/session'), {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('auth_session_invalid');
+  }
+
+  const payload = (await response.json()) as { user: AuthUser };
+  return payload.user;
+}
+
 function buildPracticeAnswerId(answer: Pick<PracticeAnswer, 'profileId' | 'lessonId' | 'taskId'>) {
   return `${answer.profileId}-${answer.lessonId}-${answer.taskId}`;
 }
@@ -290,6 +353,10 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
   const [skillMastery, setSkillMastery] = useState<SkillMastery[]>([]);
   const [speechState, setSpeechState] = useState<SpeechState>({ speaking: false, text: null });
   const [preferredVoice, setPreferredVoice] = useState<{ identifier?: string; label?: string }>({});
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [session, setSession] = useState<SessionState>(() =>
     createSession(curriculumLessons[0]?.id ?? 'tone-ngang-sac-01'),
   );
@@ -300,11 +367,36 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
 
     async function hydrate() {
       try {
+        const redirect = readWebAuthRedirect();
+        const storedAuthToken = redirect.authToken ?? (await AsyncStorage.getItem(AUTH_TOKEN_KEY));
+        setAuthError(redirect.authError ?? null);
+
+        if (storedAuthToken) {
+          try {
+            const user = await loadAuthUser(storedAuthToken);
+
+            if (mounted) {
+              setAuthToken(storedAuthToken);
+              setAuthUser(user);
+              await AsyncStorage.setItem(AUTH_TOKEN_KEY, storedAuthToken);
+            }
+          } catch {
+            await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+
+            if (mounted) {
+              setAuthToken(null);
+              setAuthUser(null);
+              setAuthError(redirect.authError ?? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+            }
+          }
+        }
+
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
 
         if (!raw) {
           if (mounted) {
             setHydrated(true);
+            setAuthLoading(false);
           }
           return;
         }
@@ -322,10 +414,12 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
           const recommendation = getRecommendationForRecord(firstRecord, nextLessons);
           setSession(createSession(recommendation.lessonId));
           setHydrated(true);
+          setAuthLoading(false);
         }
       } catch {
         if (mounted) {
           setHydrated(true);
+          setAuthLoading(false);
         }
       }
     }
@@ -532,6 +626,65 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  const signInWithGoogle = async () => {
+    setAuthLoading(true);
+    setAuthError(null);
+
+    try {
+      const response = await fetch(apiUrl('/api/auth/google/url'));
+      const payload = (await response.json()) as { url?: string; message?: string };
+
+      if (!response.ok || !payload.url) {
+        throw new Error(payload.message || 'Không thể bắt đầu đăng nhập Google.');
+      }
+
+      if (Platform.OS === 'web') {
+        const globalScope = globalThis as typeof globalThis & {
+          location?: { href?: string; assign?: (url: string) => void };
+        };
+        globalScope.location?.assign?.(payload.url);
+        if (globalScope.location) {
+          globalScope.location.href = payload.url;
+        }
+        return;
+      }
+
+      await Linking.openURL(payload.url);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Không thể đăng nhập Google.');
+      setAuthLoading(false);
+    }
+  };
+
+  const signOut = async () => {
+    const token = authToken;
+    setAuthToken(null);
+    setAuthUser(null);
+    setAuthError(null);
+    await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+
+    if (token) {
+      fetch(apiUrl('/api/auth/logout'), {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }).catch(() => undefined);
+    }
+  };
+
+  const continueAsGuest = () => {
+    setAuthError(null);
+    setAuthLoading(false);
+    setAuthToken(null);
+    setAuthUser({
+      id: 'guest',
+      email: 'guest@local',
+      name: 'Demo offline',
+      guest: true,
+    });
+  };
+
   const setStep = (step: SessionState['step']) => {
     setSession((previous) => ({
       ...previous,
@@ -582,7 +735,7 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
         answerDraft.errorTypes ??
         classifyError({
           taskType: answerDraft.taskType,
-          selectedAnswer: answerDraft.selectedAnswer,
+          selectedAnswer: answerDraft.isCorrect === true ? answerDraft.correctAnswer : answerDraft.selectedAnswer,
           correctAnswer: answerDraft.correctAnswer,
           targetPattern: answerDraft.targetPattern,
           supportUsed: answerDraft.supportUsed,
@@ -980,6 +1133,12 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
       structuredRecommendation,
       lessonSessionMetrics,
       caregiverInsights,
+      authUser,
+      authLoading,
+      authError,
+      signInWithGoogle,
+      signOut,
+      continueAsGuest,
       setActiveProfile,
       startLesson,
       selectLesson,
@@ -1006,6 +1165,9 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
     [
       activeProfileId,
       activeRecord,
+      authError,
+      authLoading,
+      authUser,
       currentTheme,
       currentAzureVoice,
       caregiverInsights,

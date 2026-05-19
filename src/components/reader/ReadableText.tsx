@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, type TextStyle } from 'react-native';
+import { StyleSheet, Text, type StyleProp, type TextStyle } from 'react-native';
 import type { ReaderFont } from '../../types';
 import type { ReaderPreferences } from '../practice/types';
 
@@ -7,7 +7,7 @@ type Props = {
   text: string;
   preferences: ReaderPreferences;
   size?: 'word' | 'sentence' | 'body';
-  style?: TextStyle;
+  style?: StyleProp<TextStyle>;
 };
 
 function getReaderFontFamily(font: ReaderFont) {

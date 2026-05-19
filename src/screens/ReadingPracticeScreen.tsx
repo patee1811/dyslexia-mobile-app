@@ -4,11 +4,15 @@ import PrimaryButton from '../components/PrimaryButton';
 import ProgressBar from '../components/ProgressBar';
 import BlendSyllableStep from '../components/practice/BlendSyllableStep';
 import ComprehensionStep from '../components/practice/ComprehensionStep';
+import DictationSpellingStep from '../components/practice/DictationSpellingStep';
 import ListenChooseStep from '../components/practice/ListenChooseStep';
+import MatchWordMeaningStep from '../components/practice/MatchWordMeaningStep';
+import PersonalizedReviewStep from '../components/practice/PersonalizedReviewStep';
 import ReadSentenceStep from '../components/practice/ReadSentenceStep';
 import ReadWordStep from '../components/practice/ReadWordStep';
 import ReviewStep from '../components/practice/ReviewStep';
 import SoundToLetterStep from '../components/practice/SoundToLetterStep';
+import StoryRetellStep from '../components/practice/StoryRetellStep';
 import ToneMinimalPairStep from '../components/practice/ToneMinimalPairStep';
 import type {
   BlendParts,
@@ -309,6 +313,7 @@ function convertStructuredTask(
   lesson: Lesson,
   readerPreferences: ReaderPreferences,
   flaggedWords: string[],
+  focusWords: string[],
 ): LessonTask {
   switch (task.type) {
     case 'listen_choose':
@@ -408,6 +413,57 @@ function convertStructuredTask(
         correctAnswer: task.answer,
       };
     }
+    case 'dictation_spelling':
+      return {
+        id: task.id,
+        kind: 'dictation_spelling',
+        title: 'Nghe viết / chính tả',
+        instruction: task.instruction,
+        prompt: task.promptText,
+        targetText: task.answer,
+        audioText: task.audioText,
+        choices: task.options,
+        correctAnswer: task.answer,
+      };
+    case 'match_word_meaning':
+      return {
+        id: task.id,
+        kind: 'match_word_meaning',
+        title: 'Nối từ với tranh và nghĩa',
+        instruction: task.instruction,
+        targetText: task.word,
+        audioText: task.word,
+        imageLabel: task.imageLabel,
+        choices: task.options,
+        correctAnswer: task.answer,
+      };
+    case 'story_retell':
+      return {
+        id: task.id,
+        kind: 'story_retell',
+        title: 'Kể lại câu chuyện ngắn',
+        instruction: task.instruction,
+        prompt: task.promptText,
+        story: task.story,
+        targetText: task.promptText,
+        audioText: task.story,
+        minWords: task.minWords,
+        correctAnswer: 'story_retold',
+      };
+    case 'personalized_review': {
+      const reviewWords = uniqueValues([...flaggedWords, ...focusWords, ...task.fallbackItems]).slice(0, 6);
+
+      return {
+        id: task.id,
+        kind: 'personalized_review',
+        title: 'Ôn lỗi hay gặp của con',
+        instruction: task.instruction,
+        prompt: task.promptText,
+        targetText: task.promptText,
+        reviewWords,
+        correctAnswer: 'personalized_review_done',
+      };
+    }
     default:
       return {
         id: `${lesson.id}-unknown-${index}`,
@@ -423,10 +479,11 @@ function buildLessonTasks(
   readerPreferences: ReaderPreferences,
   flaggedWords: string[],
   completed: boolean,
+  focusWords: string[],
 ): LessonTask[] {
   if (lesson.structuredTasks?.length) {
     const structuredTasks = lesson.structuredTasks.map((task, index) =>
-      convertStructuredTask(task, index, lesson, readerPreferences, flaggedWords),
+      convertStructuredTask(task, index, lesson, readerPreferences, flaggedWords, focusWords),
     );
 
     return [
@@ -579,6 +636,7 @@ export default function ReadingPracticeScreen() {
     finishSession,
     restartLesson,
     recordPracticeAnswer,
+    focusWords,
     speakText,
     stopSpeaking,
   } = useAppModel();
@@ -601,8 +659,8 @@ export default function ReadingPracticeScreen() {
   const [answerDrafts, setAnswerDrafts] = useState<Record<string, LocalPracticeAnswerDraft>>({});
 
   const tasks = useMemo(
-    () => buildLessonTasks(lesson, readerPreferences, session.flaggedWords, session.completed),
-    [lesson, readerPreferences, session.completed, session.flaggedWords],
+    () => buildLessonTasks(lesson, readerPreferences, session.flaggedWords, session.completed, focusWords),
+    [focusWords, lesson, readerPreferences, session.completed, session.flaggedWords],
   );
   const currentTask = tasks[Math.min(taskIndex, tasks.length - 1)];
   const progress = tasks.length === 0 ? 0 : (taskIndex + 1) / tasks.length;
@@ -747,6 +805,14 @@ export default function ReadingPracticeScreen() {
     switch (currentTask.kind) {
       case 'listen_choose':
         return <ListenChooseStep {...commonStepProps} />;
+      case 'dictation_spelling':
+        return <DictationSpellingStep {...commonStepProps} />;
+      case 'match_word_meaning':
+        return <MatchWordMeaningStep {...commonStepProps} />;
+      case 'story_retell':
+        return <StoryRetellStep {...commonStepProps} />;
+      case 'personalized_review':
+        return <PersonalizedReviewStep {...commonStepProps} />;
       case 'sound_to_letter':
         return <SoundToLetterStep {...commonStepProps} />;
       case 'blend_syllable':

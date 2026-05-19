@@ -14,7 +14,7 @@ type Props = {
 
 const difficultyLabel = {
   foundation: 'Nền tảng',
-  building: 'Đang phát triển',
+  building: 'Đang luyện',
   stretch: 'Thử thách nhẹ',
 };
 

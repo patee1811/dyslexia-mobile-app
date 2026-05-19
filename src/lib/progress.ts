@@ -93,7 +93,7 @@ export function classifyError(input: {
       errors.add('rime_confusion');
     }
 
-    if (taskType.includes('comprehension')) {
+    if (taskType.includes('comprehension') || taskType.includes('meaning') || taskType.includes('story_retell')) {
       errors.add('comprehension_error');
     }
 
@@ -183,7 +183,7 @@ export function calculateLessonSessionMetrics(
     wordReadingAccuracy: categoryAccuracy(
       answers,
       (answer) =>
-        isTaskCategory(answer, ['word', 'decode', 'reading']) ||
+        isTaskCategory(answer, ['word', 'decode', 'reading', 'dictation', 'spelling']) ||
         hasError(answer, 'omission') ||
         hasError(answer, 'substitution'),
     ),
@@ -197,7 +197,7 @@ export function calculateLessonSessionMetrics(
     ),
     comprehensionAccuracy: categoryAccuracy(
       answers,
-      (answer) => isTaskCategory(answer, ['comprehension']) || hasError(answer, 'comprehension_error'),
+      (answer) => isTaskCategory(answer, ['comprehension', 'meaning', 'story_retell']) || hasError(answer, 'comprehension_error'),
     ),
     audioReplayCount,
     averageResponseTimeMs:

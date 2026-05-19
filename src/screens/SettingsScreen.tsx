@@ -27,7 +27,7 @@ const voiceOptions: {
 ];
 
 export default function SettingsScreen() {
-  const { activeRecord, currentTheme, setAzureVoice, speakText, stopSpeaking, speechState } = useAppModel();
+  const { activeRecord, currentTheme, authUser, signOut, setAzureVoice, speakText, stopSpeaking, speechState } = useAppModel();
   const selectedVoice = activeRecord.preferences.azureVoice;
   const usingAzure = speechState.voiceLabel?.startsWith('Azure');
 
@@ -47,6 +47,18 @@ export default function SettingsScreen() {
             ? 'Azure Neural TTS đang được ưu tiên.'
             : 'Nếu chưa cấu hình Azure hoặc lỗi mạng, app sẽ fallback sang system TTS.'}
         </Text>
+      </SectionCard>
+
+      <SectionCard
+        title="Tài khoản"
+        subtitle="Đăng nhập Google dùng cho demo danh tính; dữ liệu bài học vẫn đang lưu cục bộ."
+        style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}
+      >
+        <Text style={[styles.heading, { color: currentTheme.text }]}>{authUser?.name ?? 'Chưa đăng nhập'}</Text>
+        <Text style={[styles.note, { color: currentTheme.subtext }]}>
+          {authUser?.guest ? 'Đang dùng chế độ demo offline.' : authUser?.email ?? 'Bạn có thể đăng nhập lại từ màn đăng nhập.'}
+        </Text>
+        <PrimaryButton label="Đăng xuất" onPress={() => void signOut()} secondary compact />
       </SectionCard>
 
       <ReaderSettingsPanel />

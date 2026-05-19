@@ -190,3 +190,11 @@ export type SpeechState = {
   text: string | null;
   voiceLabel?: string;
 };
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  picture?: string;
+  guest?: boolean;
+};
