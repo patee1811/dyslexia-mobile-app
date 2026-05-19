@@ -900,7 +900,8 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
             voiceLabel: `Azure ${AZURE_VOICE_LABELS[currentAzureVoice]}`,
           });
           return;
-        } catch {
+        } catch (error) {
+          console.error('Azure TTS failed, falling back to system TTS:', error);
           // Fall back to device TTS when Azure is unavailable.
         }
       }
