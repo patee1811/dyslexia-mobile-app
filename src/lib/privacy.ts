@@ -17,7 +17,7 @@ export async function deleteChildData(childId: string) {
     const scopedKeys = keys.filter((key) => key.includes(childId));
 
     if (scopedKeys.length > 0) {
-        await AsyncStorage.multiRemove(scopedKeys);
+        await Promise.all(scopedKeys.map((key) => AsyncStorage.removeItem(key)));
     }
 
     const stored = await AsyncStorage.getItem(STORAGE_KEY);

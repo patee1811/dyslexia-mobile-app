@@ -96,13 +96,13 @@ export default function PrivacyScreen() {
                 subtitle="Ứng dụng là công cụ hỗ trợ."
                 style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}
             >
-                <Text style={[styles.note, { color: currentTheme.subtext }]}
+                <Text style={[styles.note, { color: currentTheme.subtext }]}>
                     Ứng dụng là công cụ hỗ trợ luyện đọc giải trí, không có chức năng chẩn đoán y khoa hoặc thay thế các liệu
-                pháp can thiệp chuyên môn.
-            </Text>
-        </SectionCard>
-    </ScrollView >
-  );
+                    pháp can thiệp chuyên môn.
+                </Text>
+            </SectionCard>
+        </ScrollView>
+    );
 }
 
 const styles = StyleSheet.create({
