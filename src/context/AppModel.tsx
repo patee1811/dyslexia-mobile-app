@@ -6,13 +6,32 @@ import { defaultPreferences, initialLearnerRecords, baseLessons, themeOptions } 
 import {
   buildFocusWords,
   buildRewardMessage,
+  buildCaregiverInsight,
   buildShortReport,
   buildWeeklyStats,
   getRecommendation,
   mergeFlaggedWords,
   scoreSession,
 } from '../lib/coach';
+import {
+  calculateLessonSessionMetrics,
+  classifyError,
+} from '../lib/progress';
+import {
+  updateSkillMastery,
+  type SkillMastery,
+  type StructuredLesson,
+} from '../lib/mastery';
+import {
+  getNextLessonRecommendation,
+  type StructuredLessonRecommendation,
+} from '../lib/adaptive';
 import { synthesizeAzureSpeechToFile } from '../lib/azureTts';
+import type {
+  LessonSessionMetrics,
+  PracticeAnswer,
+  PracticeAnswerDraft,
+} from '../types/progress';
 import type {
   CaregiverNote,
   LearnerRecord,
@@ -32,6 +51,8 @@ type PersistedState = {
   activeProfileId: string;
   learnerRecords: LearnerRecord[];
   lessons: Lesson[];
+  practiceAnswers?: PracticeAnswer[];
+  skillMastery?: SkillMastery[];
 };
 
 const AZURE_VOICE_LABELS: Record<PracticePreferences['azureVoice'], string> = {
@@ -52,6 +73,13 @@ type AppModelValue = {
   focusWords: string[];
   recommendation: ReturnType<typeof getRecommendation>;
   shortReport: string;
+  practiceAnswers: PracticeAnswer[];
+  skillMastery: SkillMastery[];
+  recordPracticeAnswer: (answerDraft: PracticeAnswerDraft) => void;
+  completeStructuredLesson: () => void;
+  structuredRecommendation: StructuredLessonRecommendation;
+  lessonSessionMetrics: LessonSessionMetrics;
+  caregiverInsights: string[];
   setActiveProfile: (profileId: string) => void;
   startLesson: (lessonId?: string) => void;
   selectLesson: (lessonId: string) => void;
@@ -150,6 +178,41 @@ function getRecommendationForRecord(record: LearnerRecord, lessons: Lesson[]) {
   return getRecommendation(lessons, record.lessonProgress, buildFocusWords(record.lessonProgress, record.history));
 }
 
+function buildPracticeAnswerId(answer: Pick<PracticeAnswer, 'profileId' | 'lessonId' | 'taskId'>) {
+  return `${answer.profileId}-${answer.lessonId}-${answer.taskId}`;
+}
+
+function answersForLesson(answers: PracticeAnswer[], profileId: string, lessonId?: string) {
+  return answers.filter((answer) => answer.profileId === profileId && (!lessonId || answer.lessonId === lessonId));
+}
+
+function answersFromSession(lesson: Lesson, session: SessionState, profileId: string, createdAt: string) {
+  return lesson.questions.map((question, index): PracticeAnswer => {
+    const selectedIndex = session.answers[question.id];
+    const selectedAnswer = selectedIndex === undefined ? undefined : question.options[selectedIndex];
+    const correctAnswer = question.options[question.answerIndex];
+    const isCorrect = selectedIndex === question.answerIndex;
+
+    return {
+      id: buildPracticeAnswerId({ profileId, lessonId: lesson.id, taskId: question.id }),
+      profileId,
+      lessonId: lesson.id,
+      taskId: question.id,
+      taskIndex: index,
+      taskType: 'comprehension',
+      selectedAnswer,
+      correctAnswer,
+      isCorrect,
+      errorTypes: classifyError({
+        taskType: 'comprehension',
+        selectedAnswer,
+        correctAnswer,
+      }),
+      createdAt,
+    };
+  });
+}
+
 function preprocessSpeechText(text: string, mode: 'word' | 'sentence') {
   const normalized = text
     .normalize('NFC')
@@ -196,6 +259,8 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
   const [activeProfileId, setActiveProfileId] = useState(initialLearnerRecords[0].profile.id);
   const [learnerRecords, setLearnerRecords] = useState<LearnerRecord[]>(initialLearnerRecords.map(normalizeRecord));
   const [lessons, setLessons] = useState<Lesson[]>(baseLessons);
+  const [practiceAnswers, setPracticeAnswers] = useState<PracticeAnswer[]>([]);
+  const [skillMastery, setSkillMastery] = useState<SkillMastery[]>([]);
   const [speechState, setSpeechState] = useState<SpeechState>({ speaking: false, text: null });
   const [preferredVoice, setPreferredVoice] = useState<{ identifier?: string; label?: string }>({});
   const [session, setSession] = useState<SessionState>(() => createSession(baseLessons[1]?.id ?? baseLessons[0].id));
@@ -221,6 +286,8 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
           setActiveProfileId(parsed.activeProfileId);
           setLearnerRecords(parsed.learnerRecords.map(normalizeRecord));
           setLessons(parsed.lessons);
+          setPracticeAnswers(parsed.practiceAnswers ?? []);
+          setSkillMastery(parsed.skillMastery ?? []);
           const firstRecord = parsed.learnerRecords.find((record) => record.profile.id === parsed.activeProfileId) ?? parsed.learnerRecords[0];
           const recommendation = getRecommendationForRecord(firstRecord, parsed.lessons);
           setSession(createSession(recommendation.lessonId));
@@ -291,10 +358,12 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
       activeProfileId,
       learnerRecords,
       lessons,
+      practiceAnswers,
+      skillMastery,
     };
 
     void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  }, [activeProfileId, hydrated, learnerRecords, lessons]);
+  }, [activeProfileId, hydrated, learnerRecords, lessons, practiceAnswers, skillMastery]);
 
   const activeRecord = useMemo(
     () => learnerRecords.find((record) => record.profile.id === activeProfileId) ?? learnerRecords[0],
@@ -323,6 +392,40 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
   const shortReport = useMemo(
     () => buildShortReport(activeRecord.profile, activeRecord.history, focusWords, recommendation),
     [activeRecord.history, activeRecord.profile, focusWords, recommendation],
+  );
+  const currentLesson = useMemo(
+    () => lessons.find((lesson) => lesson.id === session.lessonId) ?? lessons[0],
+    [lessons, session.lessonId],
+  );
+  const currentLessonAnswers = useMemo(
+    () => {
+      const persistedAnswers = answersForLesson(practiceAnswers, activeProfileId, session.lessonId);
+      return persistedAnswers.length
+        ? persistedAnswers
+        : answersFromSession(currentLesson, session, activeProfileId, '1970-01-01T00:00:00.000Z');
+    },
+    [activeProfileId, currentLesson, practiceAnswers, session],
+  );
+  const lessonSessionMetrics = useMemo(
+    () => calculateLessonSessionMetrics(currentLessonAnswers),
+    [currentLessonAnswers],
+  );
+  const structuredRecommendation = useMemo(
+    () =>
+      getNextLessonRecommendation({
+        completedSessions: practiceAnswers.filter((answer) => answer.profileId === activeProfileId),
+        skillMastery: skillMastery.filter((mastery) => mastery.profileId === activeProfileId),
+        availableLessons: lessons as StructuredLesson[],
+      }),
+    [activeProfileId, lessons, practiceAnswers, skillMastery],
+  );
+  const caregiverInsights = useMemo(
+    () =>
+      buildCaregiverInsight({
+        metrics: lessonSessionMetrics,
+        recommendation: structuredRecommendation,
+      }),
+    [lessonSessionMetrics, structuredRecommendation],
   );
   const currentAzureVoice = activeRecord.preferences.azureVoice || AZURE_SPEECH_VOICE;
 
@@ -432,7 +535,69 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  const recordPracticeAnswer = (answerDraft: PracticeAnswerDraft) => {
+    const profileId = answerDraft.profileId ?? activeProfileId;
+    const createdAt = answerDraft.createdAt ?? new Date().toISOString();
+    const answerBase = {
+      ...answerDraft,
+      profileId,
+      createdAt,
+      id: answerDraft.id ?? buildPracticeAnswerId({ profileId, lessonId: answerDraft.lessonId, taskId: answerDraft.taskId }),
+      errorTypes:
+        answerDraft.errorTypes ??
+        classifyError({
+          taskType: answerDraft.taskType,
+          selectedAnswer: answerDraft.selectedAnswer,
+          correctAnswer: answerDraft.correctAnswer,
+          targetPattern: answerDraft.targetPattern,
+          supportUsed: answerDraft.supportUsed,
+          responseTimeMs: answerDraft.responseTimeMs,
+        }),
+    };
+    const answer: PracticeAnswer = {
+      id: answerBase.id,
+      profileId: answerBase.profileId,
+      lessonId: answerBase.lessonId,
+      taskId: answerBase.taskId,
+      taskIndex: answerBase.taskIndex,
+      taskType: answerBase.taskType,
+      selectedAnswer: answerBase.selectedAnswer,
+      correctAnswer: answerBase.correctAnswer,
+      isCorrect: answerBase.isCorrect,
+      responseTimeMs: answerBase.responseTimeMs,
+      supportUsed: answerBase.supportUsed,
+      errorTypes: answerBase.errorTypes,
+      createdAt: answerBase.createdAt,
+    };
+
+    setPracticeAnswers((previous) => {
+      const existingIndex = previous.findIndex((entry) => entry.id === answer.id);
+
+      return existingIndex >= 0
+        ? previous.map((entry, index) => (index === existingIndex ? answer : entry))
+        : [...previous, answer];
+    });
+  };
+
   const answerQuestion = (questionId: string, answerIndex: number) => {
+    const selectedLesson = lessons.find((lesson) => lesson.id === session.lessonId) ?? lessons[0];
+    const questionIndex = selectedLesson.questions.findIndex((question) => question.id === questionId);
+    const question = selectedLesson.questions[questionIndex];
+
+    if (question) {
+      recordPracticeAnswer({
+        id: buildPracticeAnswerId({ profileId: activeProfileId, lessonId: selectedLesson.id, taskId: question.id }),
+        profileId: activeProfileId,
+        lessonId: selectedLesson.id,
+        taskId: question.id,
+        taskIndex: questionIndex,
+        taskType: 'comprehension',
+        selectedAnswer: question.options[answerIndex],
+        correctAnswer: question.options[question.answerIndex],
+        isCorrect: answerIndex === question.answerIndex,
+      });
+    }
+
     setSession((previous) => ({
       ...previous,
       step: 'check',
@@ -458,10 +623,28 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
   };
 
   const finishSession = () => {
+    if (session.completed) {
+      return;
+    }
+
     const selectedLesson = lessons.find((lesson) => lesson.id === session.lessonId) ?? lessons[0];
     const result = scoreSession(selectedLesson, session);
     const completedAt = new Date().toISOString();
     const reward = buildRewardMessage(result.accuracy, activeRecord.profile.rewardPoints);
+    const persistedAnswers = answersForLesson(practiceAnswers, activeProfileId, selectedLesson.id);
+    const metrics = calculateLessonSessionMetrics(
+      persistedAnswers.length ? persistedAnswers : answersFromSession(selectedLesson, session, activeProfileId, completedAt),
+    );
+
+    setSkillMastery((previous) =>
+      updateSkillMastery({
+        previous,
+        profileId: activeProfileId,
+        lesson: selectedLesson as StructuredLesson,
+        metrics,
+        completedAt,
+      }),
+    );
 
     updateActiveRecord((record) => {
       const existing = record.lessonProgress.find((entry) => entry.lessonId === selectedLesson.id);
@@ -541,6 +724,10 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
       completed: true,
       lastAccuracy: result.accuracy,
     }));
+  };
+
+  const completeStructuredLesson = () => {
+    finishSession();
   };
 
   const restartLesson = () => {
@@ -747,6 +934,13 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
       focusWords,
       recommendation,
       shortReport,
+      practiceAnswers,
+      skillMastery,
+      recordPracticeAnswer,
+      completeStructuredLesson,
+      structuredRecommendation,
+      lessonSessionMetrics,
+      caregiverInsights,
       setActiveProfile,
       startLesson,
       selectLesson,
@@ -775,14 +969,19 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
       activeRecord,
       currentTheme,
       currentAzureVoice,
+      caregiverInsights,
       focusWords,
       hydrated,
       learnerRecords,
+      lessonSessionMetrics,
       lessons,
+      practiceAnswers,
       recommendation,
       session,
       shortReport,
       speechState,
+      skillMastery,
+      structuredRecommendation,
       weeklyStats,
     ],
   );
