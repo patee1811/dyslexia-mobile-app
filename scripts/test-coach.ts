@@ -24,6 +24,7 @@ const recommendation = getRecommendation(baseLessons, activeRecord.lessonProgres
 assert.equal(recommendation.lessonId, 'paper-boat');
 
 const session: SessionState = {
+  startedAt: '2026-01-01T00:00:00.000Z',
   lessonId: 'garden-morning',
   step: 'review',
   sentenceIndex: 3,

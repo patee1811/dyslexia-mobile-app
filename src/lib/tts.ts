@@ -11,6 +11,7 @@ export type SpeakOptions = {
     mode?: SpeakMode;
     rate?: SpeakRate;
     voice?: VoiceMode;
+    azureVoice?: string;
     allowCloud?: boolean;
 };
 
@@ -137,7 +138,11 @@ function resolveAzureMode(mode: SpeakMode) {
     return mode === 'sentence' ? 'sentence' : 'word';
 }
 
-function resolveAzureVoice(voice: VoiceMode) {
+function resolveAzureVoice(voice: VoiceMode, azureVoice?: string) {
+    if (azureVoice) {
+        return azureVoice;
+    }
+
     if (voice === 'male') {
         return DEFAULT_MALE_VOICE;
     }
@@ -230,7 +235,7 @@ async function speakWithSystem(text: string, mode: SpeakMode, rate: SpeakRate, r
     });
 }
 
-async function speakWithAzure(text: string, mode: SpeakMode, voice: VoiceMode, requestId: number) {
+async function speakWithAzure(text: string, mode: SpeakMode, voice: VoiceMode, azureVoice: string | undefined, requestId: number) {
     await ensureAudioMode();
 
     const audioUri = await synthesizeAzureSpeechToFile({
@@ -238,7 +243,7 @@ async function speakWithAzure(text: string, mode: SpeakMode, voice: VoiceMode, r
         mode: resolveAzureMode(mode),
         key: AZURE_SPEECH_KEY ?? '',
         region: AZURE_SPEECH_REGION ?? '',
-        voice: resolveAzureVoice(voice),
+        voice: resolveAzureVoice(voice, azureVoice),
     });
 
     const { sound } = await Audio.Sound.createAsync({ uri: audioUri }, { shouldPlay: true });
@@ -275,6 +280,7 @@ export async function speak(options: SpeakOptions) {
         mode = 'sentence',
         rate = 'normal',
         voice = 'system',
+        azureVoice,
         allowCloud = true,
     } = options;
     const processedText = preprocessText(text, mode);
@@ -294,7 +300,7 @@ export async function speak(options: SpeakOptions) {
             logFallback();
         } else {
             try {
-                await speakWithAzure(processedText, mode === 'syllable' ? 'sentence' : mode, voice, requestId);
+                await speakWithAzure(processedText, mode === 'syllable' ? 'sentence' : mode, voice, azureVoice, requestId);
                 return;
             } catch {
                 logFallback();

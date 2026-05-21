@@ -113,6 +113,7 @@ export type PracticePreferences = {
 };
 
 export type SessionState = {
+  startedAt: string;
   lessonId: string;
   step: SessionStep;
   sentenceIndex: number;

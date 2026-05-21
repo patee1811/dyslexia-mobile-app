@@ -3,20 +3,18 @@ import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import PrimaryButton from '../components/common/PrimaryButton';
 import SectionCard from '../components/SectionCard';
 import { useAppModel } from '../context/AppModel';
-import { deleteAllLocalData, deleteChildData } from '../lib/privacy';
 
 export default function PrivacyScreen() {
-    const { activeRecord, currentTheme } = useAppModel();
+    const { activeRecord, currentTheme, deleteActiveChildData, deleteAllAppData } = useAppModel();
     const childName = activeRecord.profile.name;
-    const childId = activeRecord.profile.id;
 
     const handleDeleteChild = async () => {
-        await deleteChildData(childId);
+        await deleteActiveChildData();
         Alert.alert('Đã xóa dữ liệu', `Dữ liệu của ${childName} đã được xóa.`);
     };
 
     const handleDeleteAll = async () => {
-        await deleteAllLocalData();
+        await deleteAllAppData();
         Alert.alert('Đã xóa dữ liệu', 'Tất cả dữ liệu đã được xóa khỏi thiết bị.');
     };
 

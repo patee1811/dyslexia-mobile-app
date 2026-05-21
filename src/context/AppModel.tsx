@@ -1,7 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Audio } from 'expo-av';
-import * as Speech from 'expo-speech';
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Linking, Platform } from 'react-native';
 import { defaultPreferences, initialLearnerRecords, curriculumLessons, themeOptions } from '../data/content';
 import {
@@ -12,7 +10,6 @@ import {
   buildWeeklyStats,
   getRecommendation,
   mergeFlaggedWords,
-  scoreSession,
 } from '../lib/coach';
 import {
   calculateLessonSessionMetrics,
@@ -27,7 +24,8 @@ import {
   getNextLessonRecommendation,
   type StructuredLessonRecommendation,
 } from '../lib/adaptive';
-import { synthesizeAzureSpeechToFile } from '../lib/azureTts';
+import { deleteAllLocalData, deleteChildData } from '../lib/privacy';
+import { speak as speakWithTts, stop as stopTts, subscribeTts } from '../lib/tts';
 import type {
   LessonSessionMetrics,
   PracticeAnswer,
@@ -108,6 +106,8 @@ type AppModelValue = {
   restartLesson: () => void;
   addCaregiverNote: (text: string, lessonId?: string) => void;
   addLesson: (draft: LessonDraft) => void;
+  deleteActiveChildData: () => Promise<void>;
+  deleteAllAppData: () => Promise<void>;
   advanceOnboarding: () => void;
   skipOnboarding: () => void;
   speakText: (text: string, mode?: 'word' | 'sentence') => void;
@@ -118,6 +118,7 @@ const AppModelContext = createContext<AppModelValue | null>(null);
 
 function createSession(lessonId: string): SessionState {
   return {
+    startedAt: new Date().toISOString(),
     lessonId,
     step: 'warmup',
     sentenceIndex: 0,
@@ -252,12 +253,21 @@ async function loadAuthUser(token: string): Promise<AuthUser> {
   return payload.user;
 }
 
-function buildPracticeAnswerId(answer: Pick<PracticeAnswer, 'profileId' | 'lessonId' | 'taskId'>) {
-  return `${answer.profileId}-${answer.lessonId}-${answer.taskId}`;
+function buildPracticeAnswerId(answer: Pick<PracticeAnswer, 'profileId' | 'lessonId' | 'taskId'> & { attemptId?: string }) {
+  return `${answer.profileId}-${answer.lessonId}-${answer.attemptId ?? 'legacy'}-${answer.taskId}`;
 }
 
 function answersForLesson(answers: PracticeAnswer[], profileId: string, lessonId?: string) {
   return answers.filter((answer) => answer.profileId === profileId && (!lessonId || answer.lessonId === lessonId));
+}
+
+function answersForSession(answers: PracticeAnswer[], profileId: string, lessonId: string, startedAt: string) {
+  const startedAtMs = new Date(startedAt).getTime();
+
+  return answersForLesson(answers, profileId, lessonId).filter((answer) => {
+    const createdAtMs = new Date(answer.createdAt).getTime();
+    return Number.isFinite(createdAtMs) && createdAtMs >= startedAtMs;
+  });
 }
 
 function answersFromSession(lesson: Lesson, session: SessionState, profileId: string, createdAt: string) {
@@ -268,7 +278,7 @@ function answersFromSession(lesson: Lesson, session: SessionState, profileId: st
     const isCorrect = selectedIndex === question.answerIndex;
 
     return {
-      id: buildPracticeAnswerId({ profileId, lessonId: lesson.id, taskId: question.id }),
+      id: buildPracticeAnswerId({ profileId, lessonId: lesson.id, taskId: question.id, attemptId: session.startedAt }),
       profileId,
       lessonId: lesson.id,
       taskId: question.id,
@@ -344,6 +354,25 @@ function normalizeRecord(record: LearnerRecord): LearnerRecord {
   };
 }
 
+function resetLearnerRecordData(record: LearnerRecord): LearnerRecord {
+  return normalizeRecord({
+    ...record,
+    profile: {
+      ...record.profile,
+      streakDays: 0,
+      rewardPoints: 0,
+      latestBadge: undefined,
+    },
+    lessonProgress: [],
+    history: [],
+    notes: [],
+    onboarding: {
+      step: 0,
+      completed: false,
+    },
+  });
+}
+
 export function AppModelProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [activeProfileId, setActiveProfileId] = useState(initialLearnerRecords[0].profile.id);
@@ -352,7 +381,6 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
   const [practiceAnswers, setPracticeAnswers] = useState<PracticeAnswer[]>([]);
   const [skillMastery, setSkillMastery] = useState<SkillMastery[]>([]);
   const [speechState, setSpeechState] = useState<SpeechState>({ speaking: false, text: null });
-  const [preferredVoice, setPreferredVoice] = useState<{ identifier?: string; label?: string }>({});
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -360,7 +388,6 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<SessionState>(() =>
     createSession(curriculumLessons[0]?.id ?? 'tone-ngang-sac-01'),
   );
-  const soundRef = useRef<Audio.Sound | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -428,49 +455,8 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false;
-      void Speech.stop();
-      if (soundRef.current) {
-        void soundRef.current.unloadAsync();
-        soundRef.current = null;
-      }
+      void stopTts();
     };
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-
-    Speech.getAvailableVoicesAsync()
-      .then((voices) => {
-        if (!mounted) {
-          return;
-        }
-
-        const vietnameseVoices = voices
-          .filter((voice) => voice.language.toLowerCase().startsWith('vi'))
-          .sort((left, right) => rankVietnameseVoice(right) - rankVietnameseVoice(left));
-        const vietnameseVoice = vietnameseVoices[0];
-        setPreferredVoice({
-          identifier: vietnameseVoice?.identifier,
-          label: vietnameseVoice ? `${vietnameseVoice.name} (${vietnameseVoice.language})` : undefined,
-        });
-      })
-      .catch(() => {
-        if (mounted) {
-          setPreferredVoice({});
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    void Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: true,
-      staysActiveInBackground: false,
-    }).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -523,7 +509,7 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
   );
   const currentLessonAnswers = useMemo(
     () => {
-      const persistedAnswers = answersForLesson(practiceAnswers, activeProfileId, session.lessonId);
+      const persistedAnswers = answersForSession(practiceAnswers, activeProfileId, session.lessonId, session.startedAt);
       return persistedAnswers.length
         ? persistedAnswers
         : answersFromSession(currentLesson, session, activeProfileId, '1970-01-01T00:00:00.000Z');
@@ -555,6 +541,20 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
     activeRecord.preferences.voiceMode === 'male'
       ? 'vi-VN-NamMinhNeural'
       : activeRecord.preferences.azureVoice || (AZURE_SPEECH_VOICE as PracticePreferences['azureVoice']);
+  const currentVoiceLabel =
+    activeRecord.preferences.allowCloud && activeRecord.preferences.voiceMode !== 'system'
+      ? `Azure ${AZURE_VOICE_LABELS[currentAzureVoice]}`
+      : 'System TTS';
+
+  useEffect(() => {
+    return subscribeTts((state) => {
+      setSpeechState({
+        speaking: state.isSpeaking,
+        text: state.activeText,
+        voiceLabel: currentVoiceLabel,
+      });
+    });
+  }, [currentVoiceLabel]);
 
   const updateActiveRecord = (updater: (record: LearnerRecord) => LearnerRecord) => {
     setLearnerRecords((previous) =>
@@ -730,7 +730,14 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
       ...answerDraft,
       profileId,
       createdAt,
-      id: answerDraft.id ?? buildPracticeAnswerId({ profileId, lessonId: answerDraft.lessonId, taskId: answerDraft.taskId }),
+      id:
+        answerDraft.id ??
+        buildPracticeAnswerId({
+          profileId,
+          lessonId: answerDraft.lessonId,
+          taskId: answerDraft.taskId,
+          attemptId: session.startedAt,
+        }),
       errorTypes:
         answerDraft.errorTypes ??
         classifyError({
@@ -774,7 +781,12 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
 
     if (question) {
       recordPracticeAnswer({
-        id: buildPracticeAnswerId({ profileId: activeProfileId, lessonId: selectedLesson.id, taskId: question.id }),
+        id: buildPracticeAnswerId({
+          profileId: activeProfileId,
+          lessonId: selectedLesson.id,
+          taskId: question.id,
+          attemptId: session.startedAt,
+        }),
         profileId: activeProfileId,
         lessonId: selectedLesson.id,
         taskId: question.id,
@@ -816,13 +828,16 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
     }
 
     const selectedLesson = lessons.find((lesson) => lesson.id === session.lessonId) ?? lessons[0];
-    const result = scoreSession(selectedLesson, session);
     const completedAt = new Date().toISOString();
-    const reward = buildRewardMessage(result.accuracy, activeRecord.profile.rewardPoints);
-    const persistedAnswers = answersForLesson(practiceAnswers, activeProfileId, selectedLesson.id);
-    const metrics = calculateLessonSessionMetrics(
-      persistedAnswers.length ? persistedAnswers : answersFromSession(selectedLesson, session, activeProfileId, completedAt),
-    );
+    const persistedAnswers = answersForSession(practiceAnswers, activeProfileId, selectedLesson.id, session.startedAt);
+    const completedAnswers = persistedAnswers.length
+      ? persistedAnswers
+      : answersFromSession(selectedLesson, session, activeProfileId, completedAt);
+    const metrics = calculateLessonSessionMetrics(completedAnswers);
+    const accuracy = Math.max(0, Math.min(1, metrics.decodingAccuracy / 100));
+    const correctAnswers = completedAnswers.filter((answer) => answer.isCorrect).length;
+    const totalAnswers = Math.max(completedAnswers.length, 1);
+    const reward = buildRewardMessage(accuracy, activeRecord.profile.rewardPoints);
 
     setSkillMastery((previous) =>
       updateSkillMastery({
@@ -842,7 +857,7 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
               ? {
                   ...entry,
                   attempts: entry.attempts + 1,
-                  bestAccuracy: Math.max(entry.bestAccuracy, result.accuracy),
+                  bestAccuracy: Math.max(entry.bestAccuracy, accuracy),
                   lastCompletedAt: completedAt,
                   flaggedWords: mergeFlaggedWords(entry.flaggedWords, session.flaggedWords),
                 }
@@ -853,7 +868,7 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
             {
               lessonId: selectedLesson.id,
               attempts: 1,
-              bestAccuracy: result.accuracy,
+              bestAccuracy: accuracy,
               lastCompletedAt: completedAt,
               flaggedWords: session.flaggedWords,
             },
@@ -866,12 +881,12 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
           lessonId: selectedLesson.id,
           lessonTitle: selectedLesson.title,
           date: completedAt,
-          accuracy: result.accuracy,
+          accuracy,
           minutes: selectedLesson.estimatedMinutes,
           flaggedWords: session.flaggedWords,
           note:
             session.caregiverNoteDraft.trim() ||
-            (result.correctAnswers === result.totalQuestions
+            (correctAnswers === totalAnswers
               ? 'Hoàn thành tốt phần hiểu bài, có thể tăng độ khó dần.'
               : 'Nên đọc lại câu chứa từ khó và hỏi trẻ kể lại ý chính bằng lời của mình.'),
           fluencyRating: session.fluencyRating,
@@ -910,7 +925,7 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
       ...previous,
       step: 'review',
       completed: true,
-      lastAccuracy: result.accuracy,
+      lastAccuracy: accuracy,
     }));
   };
 
@@ -954,6 +969,36 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
     setSession(createSession(nextLesson.id));
   };
 
+  const deleteActiveChildData = async () => {
+    const childId = activeProfileId;
+
+    await deleteChildData(childId);
+    setPracticeAnswers((previous) => previous.filter((answer) => answer.profileId !== childId));
+    setSkillMastery((previous) => previous.filter((mastery) => mastery.profileId !== childId));
+    setLearnerRecords((previous) =>
+      previous.map((record) => (record.profile.id === childId ? resetLearnerRecordData(record) : record)),
+    );
+    setSession(createSession(lessons[0]?.id ?? curriculumLessons[0]?.id ?? 'tone-ngang-sac-01'));
+  };
+
+  const deleteAllAppData = async () => {
+    const resetRecords = initialLearnerRecords.map(normalizeRecord);
+    const firstProfileId = resetRecords[0]?.profile.id ?? initialLearnerRecords[0].profile.id;
+    const firstLessonId = curriculumLessons[0]?.id ?? 'tone-ngang-sac-01';
+
+    await deleteAllLocalData();
+    setActiveProfileId(firstProfileId);
+    setLearnerRecords(resetRecords);
+    setLessons(curriculumLessons);
+    setPracticeAnswers([]);
+    setSkillMastery([]);
+    setSession(createSession(firstLessonId));
+    setAuthToken(null);
+    setAuthUser(null);
+    setAuthError(null);
+    setAuthLoading(false);
+  };
+
   const advanceOnboarding = () => {
     updateActiveRecord((record) => {
       const nextStep = record.onboarding.step + 1;
@@ -978,137 +1023,27 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
-  const stopAllSpeechPlayback = async () => {
-    if (soundRef.current) {
-      try {
-        await soundRef.current.stopAsync();
-      } catch {
-        // No-op when sound is already stopped.
-      }
-
-      try {
-        await soundRef.current.unloadAsync();
-      } catch {
-        // No-op when sound is already unloaded.
-      }
-
-      soundRef.current = null;
-    }
-
-    try {
-      await Speech.stop();
-    } catch {
-      // No-op when fallback speaker is not active.
-    }
-  };
-
   const speakText = (text: string, mode: 'word' | 'sentence' = 'sentence') => {
     if (!text.trim()) {
       return;
     }
 
-    const preparedText = preprocessSpeechText(text, mode);
-
-    const playFallbackTts = () => {
-      Speech.speak(preparedText, {
-        language: 'vi-VN',
-        pitch: mode === 'word' ? 1.06 : 1.02,
-        rate: resolveSystemSpeechRate(mode, activeRecord.preferences.speechRate),
-        voice: preferredVoice.identifier,
-        onStart: () => {
-          setSpeechState({
-            speaking: true,
-            text: preparedText,
-            voiceLabel: preferredVoice.label ? `System ${preferredVoice.label}` : 'System TTS',
-          });
-        },
-        onDone: () => {
-          setSpeechState({
-            speaking: false,
-            text: null,
-            voiceLabel: preferredVoice.label ? `System ${preferredVoice.label}` : 'System TTS',
-          });
-        },
-        onStopped: () => {
-          setSpeechState({
-            speaking: false,
-            text: null,
-            voiceLabel: preferredVoice.label ? `System ${preferredVoice.label}` : 'System TTS',
-          });
-        },
-        onError: () => {
-          setSpeechState({
-            speaking: false,
-            text: null,
-            voiceLabel: preferredVoice.label ? `System ${preferredVoice.label}` : 'System TTS',
-          });
-        },
-      });
-    };
-
-    const run = async () => {
-      await stopAllSpeechPlayback();
-
-      if (activeRecord.preferences.allowCloud && activeRecord.preferences.voiceMode !== 'system' && isAzureConfigured()) {
-        try {
-          const ttsUri = await synthesizeAzureSpeechToFile({
-            text: preparedText,
-            mode,
-            key: AZURE_SPEECH_KEY!,
-            region: AZURE_SPEECH_REGION!,
-            voice: currentAzureVoice,
-          });
-
-          const sound = new Audio.Sound();
-          soundRef.current = sound;
-          sound.setOnPlaybackStatusUpdate((status) => {
-            if (!status.isLoaded) {
-              return;
-            }
-
-            if (status.didJustFinish) {
-              void sound.unloadAsync();
-
-              if (soundRef.current === sound) {
-                soundRef.current = null;
-              }
-
-              setSpeechState({
-                speaking: false,
-                text: null,
-                voiceLabel: `Azure ${AZURE_VOICE_LABELS[currentAzureVoice]}`,
-              });
-            }
-          });
-
-          await sound.loadAsync({ uri: ttsUri }, { shouldPlay: true });
-          setSpeechState({
-            speaking: true,
-            text: preparedText,
-            voiceLabel: `Azure ${AZURE_VOICE_LABELS[currentAzureVoice]}`,
-          });
-          return;
-        } catch (error) {
-          console.error('Azure TTS failed, falling back to system TTS:', error);
-          // Fall back to device TTS when Azure is unavailable.
-        }
-      }
-
-      playFallbackTts();
-    };
-
-    void run();
+    void speakWithTts({
+      text,
+      mode,
+      rate: activeRecord.preferences.speechRate,
+      voice: activeRecord.preferences.voiceMode,
+      azureVoice: currentAzureVoice,
+      allowCloud: activeRecord.preferences.allowCloud,
+    });
   };
 
   const stopSpeaking = async () => {
-    await stopAllSpeechPlayback();
+    await stopTts();
     setSpeechState({
       speaking: false,
       text: null,
-      voiceLabel:
-        activeRecord.preferences.allowCloud && activeRecord.preferences.voiceMode !== 'system' && isAzureConfigured()
-          ? `Azure ${AZURE_VOICE_LABELS[currentAzureVoice]}`
-          : preferredVoice.label,
+      voiceLabel: currentVoiceLabel,
     });
   };
 
@@ -1157,6 +1092,8 @@ export function AppModelProvider({ children }: { children: React.ReactNode }) {
       restartLesson,
       addCaregiverNote,
       addLesson,
+      deleteActiveChildData,
+      deleteAllAppData,
       advanceOnboarding,
       skipOnboarding,
       speakText,
