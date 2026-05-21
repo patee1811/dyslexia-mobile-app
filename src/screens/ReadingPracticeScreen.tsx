@@ -314,6 +314,8 @@ function convertStructuredTask(
   readerPreferences: ReaderPreferences,
   flaggedWords: string[],
   focusWords: string[],
+  readSentenceIndex?: number,
+  readSentenceTotal?: number,
 ): LessonTask {
   switch (task.type) {
     case 'listen_choose':
@@ -381,6 +383,8 @@ function convertStructuredTask(
         correctAnswer: task.word,
       };
     case 'read_sentence':
+      const totalSentences = Math.max(readSentenceTotal ?? lesson.sentences.length, 1);
+
       return {
         id: task.id,
         kind: 'read_sentence',
@@ -390,8 +394,8 @@ function convertStructuredTask(
         targetText: task.sentence,
         audioText: task.sentence,
         correctAnswer: task.sentence,
-        sentenceIndex: index,
-        totalSentences: lesson.sentences.length,
+        sentenceIndex: readSentenceIndex ?? Math.min(index, totalSentences - 1),
+        totalSentences,
         readerPreferences,
         warmupWords: getWarmupWords(lesson),
         flaggedWords,
@@ -482,9 +486,26 @@ function buildLessonTasks(
   focusWords: string[],
 ): LessonTask[] {
   if (lesson.structuredTasks?.length) {
-    const structuredTasks = lesson.structuredTasks.map((task, index) =>
-      convertStructuredTask(task, index, lesson, readerPreferences, flaggedWords, focusWords),
-    );
+    const totalReadSentences = lesson.structuredTasks.filter((task) => task.type === 'read_sentence').length;
+    let currentReadSentenceIndex = 0;
+    const structuredTasks = lesson.structuredTasks.map((task, index) => {
+      const readSentenceIndex = task.type === 'read_sentence' ? currentReadSentenceIndex : undefined;
+
+      if (task.type === 'read_sentence') {
+        currentReadSentenceIndex += 1;
+      }
+
+      return convertStructuredTask(
+        task,
+        index,
+        lesson,
+        readerPreferences,
+        flaggedWords,
+        focusWords,
+        readSentenceIndex,
+        totalReadSentences || lesson.sentences.length,
+      );
+    });
 
     return [
       ...structuredTasks,
@@ -799,6 +820,7 @@ export default function ReadingPracticeScreen() {
     onAnswer: handleAnswer,
     onNext: goNext,
     onReplayAudio: replayAudio,
+    speechState,
   };
 
   const renderTask = () => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../../theme/colors';
 import type { WarmupWord } from '../../types';
@@ -10,6 +10,8 @@ type Props = {
   preferences: ReaderPreferences;
   warmupWords?: WarmupWord[];
   flaggedWords?: string[];
+  spokenText?: string | null;
+  isSpeaking?: boolean;
   onWordPress?: (word: string) => void;
 };
 
@@ -17,15 +19,89 @@ function cleanWord(raw: string) {
   return raw.toLowerCase().replace(/[.,!?;:]/g, '').trim();
 }
 
+function normalizeSpeechText(raw: string) {
+  return raw
+    .normalize('NFC')
+    .toLowerCase()
+    .replace(/[.,!?;:"'()[\]{}]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function estimateWordDuration(rawWord: string) {
+  const word = cleanWord(rawWord);
+  const punctuationPause = /[.!?]$/.test(rawWord) ? 240 : /[,;:]$/.test(rawWord) ? 130 : 70;
+
+  return 300 + Math.min(word.length, 8) * 38 + punctuationPause;
+}
+
 export default function FocusedSentence({
   sentence,
   preferences,
   warmupWords = [],
   flaggedWords = [],
+  spokenText,
+  isSpeaking = false,
   onWordPress,
 }: Props) {
   const [focusedWordIndex, setFocusedWordIndex] = useState<number | null>(null);
-  const words = sentence.split(/\s+/).filter(Boolean);
+  const autoFocusSentenceRef = useRef<string | null>(null);
+  const words = useMemo(() => sentence.split(/\s+/).filter(Boolean), [sentence]);
+  const sentenceSpeechKey = normalizeSpeechText(sentence);
+  const spokenSpeechKey = normalizeSpeechText(spokenText ?? '');
+
+  useEffect(() => {
+    const isSentencePlayback = isSpeaking && Boolean(spokenText) && spokenSpeechKey === sentenceSpeechKey;
+
+    if (!isSentencePlayback || words.length === 0) {
+      if (isSpeaking && spokenText) {
+        autoFocusSentenceRef.current = null;
+      }
+
+      return undefined;
+    }
+
+    autoFocusSentenceRef.current = sentenceSpeechKey;
+    const durations = words.map(estimateWordDuration);
+    const totalDuration = durations.reduce((sum, duration) => sum + duration, 0);
+    const startedAt = Date.now();
+
+    const updateFocusedWord = () => {
+      const elapsed = Math.min(Date.now() - startedAt, totalDuration - 1);
+      let cursor = 0;
+
+      for (let index = 0; index < durations.length; index += 1) {
+        cursor += durations[index];
+
+        if (elapsed < cursor) {
+          setFocusedWordIndex(index);
+          return;
+        }
+      }
+
+      setFocusedWordIndex(durations.length - 1);
+    };
+
+    updateFocusedWord();
+    const interval = setInterval(updateFocusedWord, 120);
+
+    return () => clearInterval(interval);
+  }, [isSpeaking, sentenceSpeechKey, spokenSpeechKey, spokenText, words]);
+
+  useEffect(() => {
+    if (isSpeaking || autoFocusSentenceRef.current !== sentenceSpeechKey || words.length === 0) {
+      return undefined;
+    }
+
+    setFocusedWordIndex(words.length - 1);
+    const timeout = setTimeout(() => {
+      if (autoFocusSentenceRef.current === sentenceSpeechKey) {
+        autoFocusSentenceRef.current = null;
+      }
+    }, 650);
+
+    return () => clearTimeout(timeout);
+  }, [isSpeaking, sentenceSpeechKey, words.length]);
 
   return (
     <View style={styles.container}>
@@ -90,16 +166,21 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   focusCanvas: {
-    backgroundColor: '#FFF9EE',
+    backgroundColor: '#FFFBF2',
+    borderColor: '#E8C06F',
   },
   focusLine: {
     position: 'absolute',
     left: 0,
-    top: '42%',
+    top: '50%',
     width: '100%',
-    height: 44,
-    backgroundColor: '#F8E4C8',
-    opacity: 0.55,
+    height: 58,
+    marginTop: -29,
+    backgroundColor: '#FFE2A8',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#F0C66B',
+    opacity: 0.95,
   },
   sentenceText: {
     color: colors.ink,

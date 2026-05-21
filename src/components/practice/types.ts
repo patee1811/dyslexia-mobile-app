@@ -1,4 +1,4 @@
-import type { PracticePreferences, WarmupWord } from '../../types';
+import type { PracticePreferences, SpeechState, WarmupWord } from '../../types';
 
 export type PracticeAnswerDraft = {
   taskId: string;
@@ -77,4 +77,5 @@ export type PracticeStepProps = {
   onAnswer: (answer: PracticeAnswerDraft) => void;
   onNext: () => void;
   onReplayAudio?: (text: string) => void;
+  speechState?: SpeechState;
 };

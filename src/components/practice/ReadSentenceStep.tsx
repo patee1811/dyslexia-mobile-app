@@ -12,6 +12,7 @@ export default function ReadSentenceStep({
   onAnswer,
   onNext,
   onReplayAudio,
+  speechState,
 }: PracticeStepProps) {
   const [flagged, setFlagged] = useState(false);
   const startedAtRef = useRef(Date.now());
@@ -72,6 +73,8 @@ export default function ReadSentenceStep({
           preferences={task.readerPreferences}
           warmupWords={task.warmupWords}
           flaggedWords={task.flaggedWords}
+          spokenText={speechState?.text}
+          isSpeaking={speechState?.speaking}
           onWordPress={(word) => onReplayAudio?.(word)}
         />
       ) : (
