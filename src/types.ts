@@ -1,4 +1,11 @@
-export type AppTab = 'home' | 'practice' | 'caregiver' | 'hci' | 'settings';
+import type {
+  LessonTask as StructuredLessonTask,
+  LiteracySkill,
+  StructuredLesson,
+  VietnamesePattern,
+} from './types/literacy';
+
+export type AppTab = 'home' | 'practice' | 'caregiver' | 'hci' | 'settings' | 'privacy';
 
 export type LessonDifficulty = 'foundation' | 'building' | 'stretch';
 
@@ -23,6 +30,7 @@ export type LearnerProfile = {
   id: string;
   name: string;
   age: number;
+  region: 'north' | 'central' | 'south';
   readingLevel: string;
   weeklyGoal: number;
   streakDays: number;
@@ -62,6 +70,21 @@ export type Lesson = {
   questions: ComprehensionQuestion[];
   caregiverTip: string;
   createdBy?: 'system' | 'caregiver';
+  targetSkills?: Array<LiteracySkill | string>;
+  targetPattern?: VietnamesePattern & {
+    key?: string;
+    patternKey?: string;
+    skill?: string;
+    type?: string;
+    value?: string;
+  };
+  prerequisiteLessonIds?: string[];
+  prerequisites?: string[];
+  mastery?: StructuredLesson['mastery'];
+  structuredTasks?: StructuredLessonTask[];
+  safetyNote?: string;
+  order?: number;
+  sourceStructuredLessonId?: string;
 };
 
 export type LessonProgress = {
@@ -78,14 +101,19 @@ export type PracticePreferences = {
   chunkSize: number;
   focusMode: boolean;
   superFocus: boolean;
+  reduceMotion: boolean;
   showSyllables: boolean;
   themeId: string;
   readerFont: ReaderFont;
   letterSpacing: number;
   azureVoice: 'vi-VN-HoaiMyNeural' | 'vi-VN-NamMinhNeural';
+  allowCloud: boolean;
+  speechRate: 'very_slow' | 'slow' | 'normal';
+  voiceMode: 'female' | 'male' | 'system';
 };
 
 export type SessionState = {
+  startedAt: string;
   lessonId: string;
   step: SessionStep;
   sentenceIndex: number;
@@ -162,4 +190,12 @@ export type SpeechState = {
   speaking: boolean;
   text: string | null;
   voiceLabel?: string;
+};
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  picture?: string;
+  guest?: boolean;
 };

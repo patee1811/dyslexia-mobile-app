@@ -2,36 +2,53 @@
 
 ## Mục tiêu
 
-Đánh giá xem phụ huynh, giáo viên hoặc người dùng đại diện có thể hoàn thành các tác vụ chính của ứng dụng một cách rõ ràng, ít nhầm lẫn và ít cần trợ giúp hay không.
+Đánh giá app có dễ dùng, dễ đọc và phù hợp vai trò hỗ trợ luyện đọc hay không. Kết quả dùng để cải thiện giao diện, luồng tương tác và dashboard phụ huynh/giáo viên.
 
 ## Người tham gia
 
-- 5-10 người
-- Có thể gồm phụ huynh, giáo viên hoặc người dùng đại diện
+- **Số người:** 5-10 người.
+- **Nhóm tham gia:** trẻ đại diện, phụ huynh, sinh viên tester, giáo viên nếu có.
+- **Điều kiện với trẻ:** có phụ huynh/giáo viên đồng ý, không thu thông tin nhạy cảm không cần thiết.
 
-## Tác vụ
+## Hình thức
 
-1. Mở app và chọn đúng hồ sơ người học.
-2. Bắt đầu bài luyện được gợi ý.
-3. Nghe mẫu một từ và một câu.
-4. Bật chế độ siêu tập trung hoặc đổi font đọc.
-5. Đánh dấu một từ khó trong lúc đọc.
-6. Trả lời câu hỏi hiểu bài.
-7. Lưu ghi chú sau buổi học.
-8. Mở màn hình theo dõi để xem tiến độ và từ cần ôn.
+- **Cách test:** test trực tiếp hoặc quan sát có hướng dẫn.
+- **Thời lượng:** 10-15 phút/người.
+- **Thiết bị:** điện thoại có bản demo app.
+- **Người điều phối:** đọc task, quan sát, không hướng dẫn quá mức trừ khi người tham gia bị kẹt.
 
-## Chỉ số
+## Task test tối thiểu
 
-- Thời gian hoàn thành tác vụ
-- Số lần chạm nhầm
-- Số lần cần trợ giúp
-- Mức hài lòng sau khi dùng thử
-- Mức rõ ràng của phần báo cáo sau buổi học
+1. Chọn hồ sơ trẻ.
+2. Bắt đầu bài luyện.
+3. Nghe lại một từ/câu.
+4. Hoàn thành một câu hỏi.
+5. Xem dashboard phụ huynh.
+6. Tìm bài gợi ý tiếp theo.
 
-## Câu hỏi hậu kiểm
+## Task mở rộng cho phụ huynh/giáo viên
 
-- Chữ có đủ to và dễ đọc không?
-- Bạn có biết bắt đầu buổi luyện ở đâu không?
-- Việc nghe mẫu từ hoặc câu có dễ tìm không?
-- Màn hình theo dõi có đủ dễ hiểu để dùng trong thực tế không?
-- Bạn có cảm thấy app gây quá tải thông tin không?
+1. Tìm kỹ năng cần luyện trong dashboard.
+2. Xem lỗi lặp lại và đọc gợi ý hỗ trợ.
+3. Ghi chú sau buổi học.
+4. Tạo bài luyện ngắn theo một kỹ năng cần ôn.
+5. Đọc cảnh báo từ validator và sửa bài nếu cần.
+
+## Metric
+
+- **Task completion rate:** hoàn thành/không hoàn thành từng task.
+- **Số lỗi thao tác:** nhấn nhầm, đi sai màn, không tìm được nút.
+- **Thời gian hoàn thành:** tính theo giây/phút cho từng task.
+- **Mức dễ hiểu:** thang 1-5.
+- **Mức dễ đọc:** thang 1-5.
+- **Mức thoải mái:** thang 1-5, đặc biệt với trẻ.
+- **Quan sát quá tải giao diện:** ghi lại lúc người tham gia dừng lâu, hỏi lại hoặc bỏ qua thông tin.
+- **Góp ý mở:** điểm khó nhất, điểm thích nhất, đề xuất cải thiện.
+
+## Tiêu chí thành công
+
+- Ít nhất 80% task chính được hoàn thành.
+- Điểm dễ dùng trung bình từ 4/5 trở lên.
+- Người tham gia tìm được bài gợi ý tiếp theo mà không cần giải thích dài.
+- Trẻ không cảm thấy bị chấm điểm tiêu cực.
+- Phụ huynh hiểu app là công cụ hỗ trợ, không phải công cụ chẩn đoán.

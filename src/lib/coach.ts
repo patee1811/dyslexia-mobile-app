@@ -7,6 +7,56 @@ import type {
   SessionState,
   StatCard,
 } from '../types';
+import type { LessonSessionMetrics, ReadingErrorType } from '../types/progress';
+import type { StructuredLessonRecommendation } from './adaptive';
+
+const ERROR_INSIGHT_LABELS: Record<ReadingErrorType, string> = {
+  tone_error: 'dau thanh',
+  onset_confusion: 'am dau',
+  rime_confusion: 'van',
+  omission: 'bo sot tu hoac dap an',
+  substitution: 'chon nham dap an',
+  slow_decoding: 'toc do giai ma',
+  needs_audio_prompt: 'su dung ho tro am thanh',
+  comprehension_error: 'doc hieu',
+};
+
+export function buildCaregiverInsight(input: {
+  metrics: LessonSessionMetrics;
+  recommendation: StructuredLessonRecommendation;
+}): string[] {
+  const insights: string[] = [];
+  const repeatedErrors = Object.entries(input.metrics.errorSummary)
+    .filter(([, count]) => count >= 1)
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 2) as [ReadingErrorType, number][];
+
+  repeatedErrors.forEach(([errorType, count]) => {
+    insights.push(
+      `Con dang can luyen them ${ERROR_INSIGHT_LABELS[errorType]} vi dang co ${count} loi trong buoi gan day.`,
+    );
+  });
+
+  if (input.metrics.averageResponseTimeMs > 8000) {
+    insights.push('Thoi gian phan hoi trung binh con hoi dai, nen cho con luyen tung cau ngan truoc.');
+  }
+
+  if (input.metrics.audioReplayCount > 0) {
+    insights.push(
+      `Con da dung ho tro am thanh ${input.metrics.audioReplayCount} lan, co the cho con nghe mau roi doc lai cham.`,
+    );
+  }
+
+  insights.push(`App goi y bai "${input.recommendation.title}" vi ${input.recommendation.reason}`);
+
+  if (insights.length < 3) {
+    insights.unshift(
+      `Ket qua luyen tap gan day dat ${Math.round(input.metrics.decodingAccuracy)}% do chinh xac tong quat.`,
+    );
+  }
+
+  return insights.slice(0, 5);
+}
 
 export function buildFocusWords(progress: LessonProgress[], history: SessionHistoryEntry[]) {
   const counts = new Map<string, number>();

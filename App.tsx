@@ -5,6 +5,8 @@ import { AppModelProvider, useAppModel } from './src/context/AppModel';
 import CaregiverScreen from './src/screens/CaregiverScreen';
 import HciScreen from './src/screens/HciScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import PrivacyScreen from './src/screens/PrivacyScreen';
 import ReadingPracticeScreen from './src/screens/ReadingPracticeScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { colors } from './src/theme/colors';
@@ -12,7 +14,7 @@ import type { AppTab } from './src/types';
 
 function AppShell() {
   const [activeTab, setActiveTab] = useState<AppTab>('home');
-  const { hydrated } = useAppModel();
+  const { hydrated, authUser, authLoading } = useAppModel();
 
   const screen = useMemo(() => {
     switch (activeTab) {
@@ -24,13 +26,15 @@ function AppShell() {
         return <HciScreen />;
       case 'settings':
         return <SettingsScreen />;
+      case 'privacy':
+        return <PrivacyScreen />;
       case 'home':
       default:
         return <HomeScreen onOpenPractice={() => setActiveTab('practice')} onOpenCaregiver={() => setActiveTab('caregiver')} />;
     }
   }, [activeTab]);
 
-  if (!hydrated) {
+  if (!hydrated || authLoading) {
     return (
       <SafeAreaView style={styles.loadingShell}>
         <StatusBar barStyle="dark-content" backgroundColor={colors.shell} />
@@ -38,6 +42,14 @@ function AppShell() {
           <ActivityIndicator size="large" color={colors.accent} />
           <Text style={styles.loadingText}>Đang tải dữ liệu buổi học đã lưu...</Text>
         </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!authUser) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <LoginScreen />
       </SafeAreaView>
     );
   }

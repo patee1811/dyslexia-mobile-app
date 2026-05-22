@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import PrimaryButton from '../components/PrimaryButton';
 import ProgressBar from '../components/ProgressBar';
 import SectionCard from '../components/SectionCard';
+import ProfileCard from '../components/profile/ProfileCard';
 import { useAppModel } from '../context/AppModel';
 import { homeHighlights, onboardingSteps } from '../data/content';
 
@@ -13,7 +14,7 @@ type Props = {
 
 const difficultyLabel = {
   foundation: 'Nền tảng',
-  building: 'Đang phát triển',
+  building: 'Đang luyện',
   stretch: 'Thử thách nhẹ',
 };
 
@@ -25,7 +26,7 @@ export default function HomeScreen({ onOpenPractice, onOpenCaregiver }: Props) {
     lessons,
     currentTheme,
     weeklyStats,
-    recommendation,
+    structuredRecommendation,
     setActiveProfile,
     startLesson,
     cycleTheme,
@@ -38,6 +39,7 @@ export default function HomeScreen({ onOpenPractice, onOpenCaregiver }: Props) {
   const { profile, preferences, lessonProgress, onboarding } = activeRecord;
   const goalProgress = Math.min(activeRecord.history.length / profile.weeklyGoal, 1);
   const onboardingStep = onboardingSteps[onboarding.step] ?? onboardingSteps[onboardingSteps.length - 1];
+  const recommendedLesson = lessons.find((lesson) => lesson.id === structuredRecommendation.lessonId);
 
   return (
     <ScrollView style={{ backgroundColor: currentTheme.background }} contentContainerStyle={styles.content}>
@@ -51,9 +53,9 @@ export default function HomeScreen({ onOpenPractice, onOpenCaregiver }: Props) {
         </Text>
         <View style={styles.heroActions}>
           <PrimaryButton
-            label={`Bắt đầu: ${recommendation.title}`}
+            label={`Bắt đầu: ${structuredRecommendation.title}`}
             onPress={() => {
-              startLesson(recommendation.lessonId);
+              startLesson(structuredRecommendation.lessonId);
               onOpenPractice();
             }}
           />
@@ -106,7 +108,7 @@ export default function HomeScreen({ onOpenPractice, onOpenCaregiver }: Props) {
 
       <SectionCard
         title="Buổi học gợi ý hôm nay"
-        subtitle={recommendation.reason}
+        subtitle={structuredRecommendation.reason}
         style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}
       >
         <View style={styles.inlineMeta}>
@@ -127,7 +129,7 @@ export default function HomeScreen({ onOpenPractice, onOpenCaregiver }: Props) {
           <PrimaryButton
             label="Mở buổi học này"
             onPress={() => {
-              startLesson(recommendation.lessonId);
+              startLesson(structuredRecommendation.lessonId);
               onOpenPractice();
             }}
           />
@@ -165,22 +167,16 @@ export default function HomeScreen({ onOpenPractice, onOpenCaregiver }: Props) {
         </Text>
       </SectionCard>
 
-      <SectionCard title="Hồ sơ người học" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
-        <Text style={[styles.profileHeading, { color: currentTheme.text }]}>
-          {profile.name}, {profile.age} tuổi
-        </Text>
-        <Text style={[styles.note, { color: currentTheme.subtext }]}>{profile.readingLevel}</Text>
-        <Text style={[styles.rewardText, { color: currentTheme.accent }]}>
-          Điểm thưởng: {profile.rewardPoints} • Huy hiệu: {profile.latestBadge ?? 'Chưa có'}
-        </Text>
-        <View style={styles.chips}>
-          {profile.supportNeeds.map((item) => (
-            <View key={item} style={[styles.chip, { backgroundColor: currentTheme.surfaceAlt }]}>
-              <Text style={[styles.chipText, { color: currentTheme.text }]}>{item}</Text>
-            </View>
-          ))}
-        </View>
-      </SectionCard>
+      <ProfileCard
+        name={profile.name}
+        age={profile.age}
+        readingLevel={profile.readingLevel}
+        region={profile.region}
+        supportNeeds={profile.supportNeeds}
+        strengths={profile.strengths}
+        interests={profile.interests}
+        weeklyGoal={profile.weeklyGoal}
+      />
 
       <SectionCard title="Thư viện bài đọc" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
         {lessons.map((lesson) => {
@@ -195,13 +191,15 @@ export default function HomeScreen({ onOpenPractice, onOpenCaregiver }: Props) {
               }}
               style={[
                 styles.lessonCard,
-                { backgroundColor: lesson.id === recommendation.lessonId ? currentTheme.surfaceAlt : '#FFFDF8' },
+                { backgroundColor: lesson.id === structuredRecommendation.lessonId ? currentTheme.surfaceAlt : '#FFFDF8' },
               ]}
             >
               <View style={styles.lessonHeader}>
                 <Text style={[styles.lessonTitle, { color: currentTheme.text }]}>{lesson.title}</Text>
                 <View style={[styles.levelBadge, { backgroundColor: currentTheme.accentSoft }]}>
-                  <Text style={[styles.levelText, { color: currentTheme.accent }]}>{difficultyLabel[lesson.difficulty]}</Text>
+                  <Text style={[styles.levelText, { color: currentTheme.accent }]}>
+                    {difficultyLabel[(recommendedLesson?.id === lesson.id ? recommendedLesson : lesson).difficulty]}
+                  </Text>
                 </View>
               </View>
               <Text style={[styles.note, { color: currentTheme.subtext }]}>{lesson.focusSkill}</Text>

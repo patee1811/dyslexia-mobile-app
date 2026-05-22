@@ -5,6 +5,12 @@ import type {
   PracticePreferences,
   ThemeOption,
 } from '../types';
+import { structuredLessons as structuredLessonData } from './structuredLessons';
+import type { LessonTask as StructuredLessonTask, StructuredLesson } from '../types/literacy';
+
+export { skillTree } from './skillTree';
+export { structuredLessons } from './structuredLessons';
+export { vietnamesePatterns } from './vietnamesePatterns';
 
 export const themeOptions: ThemeOption[] = [
   {
@@ -51,11 +57,15 @@ export const defaultPreferences: PracticePreferences = {
   chunkSize: 1,
   focusMode: true,
   superFocus: false,
+  reduceMotion: false,
   showSyllables: false,
   themeId: 'sun',
   readerFont: 'default',
   letterSpacing: 0.2,
   azureVoice: 'vi-VN-HoaiMyNeural',
+  allowCloud: true,
+  speechRate: 'slow',
+  voiceMode: 'female',
 };
 
 export const baseLessons: Lesson[] = [
@@ -175,12 +185,346 @@ export const baseLessons: Lesson[] = [
   },
 ];
 
+const skillLabels: Record<StructuredLesson['targetSkills'][number], string> = {
+  phonological_awareness: 'Nhận biết âm thanh tiếng Việt',
+  sound_symbol: 'Nhận diện âm đầu và chữ ghi âm',
+  syllable_blending: 'Ghép âm/vần thành tiếng',
+  tone_discrimination: 'Phân biệt dấu thanh',
+  vietnamese_spelling_rule: 'Quy tắc chính tả tiếng Việt',
+  word_reading: 'Đọc từ',
+  sentence_fluency: 'Đọc câu ngắn lưu loát',
+  comprehension: 'Đọc hiểu',
+};
+
+function lessonDifficulty(level: number): Lesson['difficulty'] {
+  if (level <= 1) {
+    return 'foundation';
+  }
+
+  if (level <= 3) {
+    return 'building';
+  }
+
+  return 'stretch';
+}
+
+function taskText(task: StructuredLessonTask) {
+  switch (task.type) {
+    case 'listen_choose':
+      return task.answer;
+    case 'sound_to_letter':
+      return task.answer;
+    case 'blend_syllable':
+      return task.answer;
+    case 'tone_minimal_pair':
+      return task.answer;
+    case 'read_word':
+      return task.word;
+    case 'read_sentence':
+      return task.sentence;
+    case 'comprehension':
+      return task.question;
+    case 'dictation_spelling':
+      return task.answer;
+    case 'match_word_meaning':
+      return task.word;
+    case 'story_retell':
+      return task.story;
+    case 'personalized_review':
+      return task.fallbackItems[0] ?? task.promptText;
+    default:
+      return '';
+  }
+}
+
+function structuredLessonToLegacyLesson(lesson: StructuredLesson, index: number): Lesson {
+  const readWords = lesson.tasks.filter((task): task is Extract<StructuredLessonTask, { type: 'read_word' }> => task.type === 'read_word');
+  const readSentences = lesson.tasks.filter(
+    (task): task is Extract<StructuredLessonTask, { type: 'read_sentence' }> => task.type === 'read_sentence',
+  );
+  const comprehensionTasks = lesson.tasks.filter(
+    (task): task is Extract<StructuredLessonTask, { type: 'comprehension' }> => task.type === 'comprehension',
+  );
+  const fallbackWords = [...new Set(lesson.tasks.map(taskText).filter((text) => text && !text.includes(' ')))].slice(0, 3);
+  const warmupSource = readWords.length ? readWords : fallbackWords.map((word) => ({ word, supports: [], instruction: '' }));
+  const focusSkill = lesson.targetSkills.map((skill) => skillLabels[skill]).join(' + ');
+
+  return {
+    id: lesson.id,
+    title: lesson.title,
+    difficulty: lessonDifficulty(lesson.level),
+    topic: focusSkill,
+    estimatedMinutes: lesson.estimatedMinutes,
+    focusSkill,
+    coachGoal: `Luyện ${focusSkill.toLowerCase()} qua chuỗi nghe, ghép, đọc từ, đọc câu và hiểu bài.`,
+    warmup: warmupSource.slice(0, 4).map((task) => ({
+      word: task.word,
+      syllables: task.word,
+      cue: 'Nhìn kỹ mặt chữ, nghe mẫu nếu cần, rồi đọc lại chậm.',
+      example: task.supports?.[0] ?? lesson.caregiverTip,
+    })),
+    sentences: readSentences.length ? readSentences.map((task) => task.sentence) : [`Con luyện đọc tiếng ${fallbackWords[0] ?? 'mới'}.`],
+    questions: comprehensionTasks.map((task) => ({
+      id: task.id,
+      prompt: task.question,
+      options: task.options,
+      answerIndex: Math.max(0, task.options.findIndex((option) => option === task.answer)),
+      explanation: 'Câu hỏi kiểm tra ý chính của câu vừa đọc.',
+    })),
+    caregiverTip: lesson.caregiverTip,
+    createdBy: 'system',
+    targetSkills: lesson.targetSkills,
+    targetPattern: {
+      ...lesson.targetPattern,
+      key: lesson.id,
+      patternKey: lesson.id,
+      skill: lesson.targetSkills[0],
+      type: lesson.targetSkills[0],
+      value: lesson.targetPattern.contrastSet?.join('/') ?? lesson.title,
+    },
+    prerequisiteLessonIds: lesson.prerequisiteLessonIds,
+    prerequisites: lesson.prerequisiteLessonIds,
+    mastery: lesson.mastery,
+    structuredTasks: lesson.tasks,
+    safetyNote: lesson.safetyNote,
+    order: index,
+    sourceStructuredLessonId: lesson.id,
+  };
+}
+
+const supplementalStructuredLessons: StructuredLesson[] = [
+  {
+    id: 'dictation-spelling-ng-ngh-13',
+    title: 'Nghe viết quy tắc ng/ngh',
+    level: 4,
+    estimatedMinutes: 7,
+    targetSkills: ['vietnamese_spelling_rule', 'word_reading'],
+    targetPattern: {
+      graphemes: ['ng', 'ngh'],
+      contrastSet: ['nghe', 'nghỉ', 'nga', 'ngô'],
+      regionSensitive: false,
+    },
+    prerequisiteLessonIds: ['spelling-ng-ngh-11'],
+    tasks: [
+      {
+        id: 'dictation-ng-ngh-listen',
+        type: 'listen_choose',
+        promptText: 'Nghe tiếng mẫu rồi chọn tiếng đúng.',
+        options: ['nghe', 'nge', 'ghe'],
+        answer: 'nghe',
+        instruction: 'Nghe chậm, nhìn chữ e sau âm đầu để chọn ngh.',
+      },
+      {
+        id: 'dictation-ng-ngh-write',
+        type: 'dictation_spelling',
+        promptText: 'Nghe và gõ lại tiếng con nghe được.',
+        audioText: 'nghe',
+        answer: 'nghe',
+        options: ['nghe', 'nghê', 'nge'],
+        instruction: 'Bấm nghe mẫu, sau đó nhập hoặc chọn cách viết đúng.',
+      },
+      {
+        id: 'dictation-ng-ngh-word',
+        type: 'read_word',
+        word: 'nghỉ',
+        supports: ['Nhìn cụm ngh', 'Nhìn chữ i sau đó', 'Đọc cả tiếng'],
+        instruction: 'Đọc tiếng nghỉ thật rõ.',
+      },
+      {
+        id: 'dictation-ng-ngh-sentence',
+        type: 'read_sentence',
+        sentence: 'Bé nghe bà kể chuyện rồi nghỉ.',
+        instruction: 'Đọc câu ngắn, chú ý nghe và nghỉ.',
+      },
+      {
+        id: 'dictation-ng-ngh-comprehension',
+        type: 'comprehension',
+        question: 'Bé làm gì sau khi nghe chuyện?',
+        options: ['Nghỉ', 'Chạy', 'Vẽ'],
+        answer: 'Nghỉ',
+        instruction: 'Chọn ý đúng theo câu vừa đọc.',
+      },
+    ],
+    mastery: {
+      minAccuracy: 0.82,
+      minAttempts: 2,
+      reviewAfterDays: [1, 3, 7],
+    },
+    caregiverTip: 'Khi trẻ nhầm ng/ngh, nhắc trẻ nhìn nguyên âm đứng sau âm đầu trước khi viết.',
+    safetyNote: 'Bài học chỉ hỗ trợ luyện đọc/chính tả, không dùng để chẩn đoán.',
+  },
+  {
+    id: 'match-word-meaning-14',
+    title: 'Nối từ với tranh và nghĩa',
+    level: 4,
+    estimatedMinutes: 7,
+    targetSkills: ['word_reading', 'comprehension'],
+    targetPattern: {
+      graphemes: ['lá', 'na', 'sách'],
+      contrastSet: ['lá', 'na', 'sách'],
+      regionSensitive: false,
+    },
+    prerequisiteLessonIds: ['sentence-short-review-12'],
+    tasks: [
+      {
+        id: 'match-word-meaning-listen',
+        type: 'listen_choose',
+        promptText: 'Nghe từ mẫu rồi chọn từ đúng.',
+        options: ['lá', 'na', 'sách'],
+        answer: 'lá',
+        instruction: 'Nghe từ và nhìn mặt chữ trước khi chọn.',
+      },
+      {
+        id: 'match-word-meaning-card',
+        type: 'match_word_meaning',
+        word: 'lá',
+        imageLabel: '🍃',
+        options: ['Phần màu xanh trên cây', 'Một loại quả tròn', 'Đồ dùng để đọc'],
+        answer: 'Phần màu xanh trên cây',
+        instruction: 'Nhìn tranh gợi ý rồi nối từ với nghĩa đúng.',
+      },
+      {
+        id: 'match-word-meaning-word',
+        type: 'read_word',
+        word: 'lá',
+        supports: ['Nhìn dấu sắc', 'Nối với tranh chiếc lá'],
+        instruction: 'Đọc từ lá sau khi hiểu nghĩa.',
+      },
+      {
+        id: 'match-word-meaning-sentence',
+        type: 'read_sentence',
+        sentence: 'Lan nhặt chiếc lá xanh.',
+        instruction: 'Đọc câu ngắn và nhớ nghĩa của từ lá.',
+      },
+      {
+        id: 'match-word-meaning-comprehension',
+        type: 'comprehension',
+        question: 'Lan nhặt gì?',
+        options: ['Chiếc lá xanh', 'Quả na', 'Quyển sách'],
+        answer: 'Chiếc lá xanh',
+        instruction: 'Chọn đáp án đúng theo câu.',
+      },
+    ],
+    mastery: {
+      minAccuracy: 0.82,
+      minAttempts: 2,
+      reviewAfterDays: [1, 4, 8],
+    },
+    caregiverTip: 'Cho trẻ nói nghĩa của từ bằng lời của mình trước khi đọc câu.',
+    safetyNote: 'Bài học hỗ trợ vốn từ và đọc hiểu, không dùng để đánh giá y khoa.',
+  },
+  {
+    id: 'story-retell-short-15',
+    title: 'Kể lại câu chuyện ngắn',
+    level: 4,
+    estimatedMinutes: 8,
+    targetSkills: ['sentence_fluency', 'comprehension'],
+    targetPattern: {
+      contrastSet: ['đọc câu', 'kể lại', 'ý chính'],
+      regionSensitive: false,
+    },
+    prerequisiteLessonIds: ['match-word-meaning-14'],
+    tasks: [
+      {
+        id: 'story-retell-listen',
+        type: 'listen_choose',
+        promptText: 'Nghe câu chuyện ngắn rồi chọn nhân vật chính.',
+        options: ['Lan', 'Nam', 'Bà'],
+        answer: 'Lan',
+        instruction: 'Nghe chậm và nhớ nhân vật chính.',
+      },
+      {
+        id: 'story-retell-read',
+        type: 'read_sentence',
+        sentence: 'Lan nhặt lá xanh. Lan tặng lá cho bà. Bà mỉm cười.',
+        instruction: 'Đọc từng câu ngắn, nghỉ một nhịp sau dấu chấm.',
+      },
+      {
+        id: 'story-retell-task',
+        type: 'story_retell',
+        story: 'Lan nhặt lá xanh. Lan tặng lá cho bà. Bà mỉm cười.',
+        promptText: 'Con hãy kể lại câu chuyện bằng lời của mình.',
+        minWords: 4,
+        instruction: 'Không cần kể giống hệt. Chỉ cần nói lại ý chính bằng vài từ hoặc một câu ngắn.',
+      },
+      {
+        id: 'story-retell-comprehension',
+        type: 'comprehension',
+        question: 'Lan tặng lá cho ai?',
+        options: ['Bà', 'Bạn', 'Mẹ'],
+        answer: 'Bà',
+        instruction: 'Chọn người nhận chiếc lá.',
+      },
+    ],
+    mastery: {
+      minAccuracy: 0.78,
+      minAttempts: 2,
+      reviewAfterDays: [1, 4, 8],
+    },
+    caregiverTip: 'Khi trẻ kể lại, chấp nhận câu ngắn và ý chính; không yêu cầu lặp lại nguyên văn.',
+    safetyNote: 'Bài học hỗ trợ đọc hiểu và diễn đạt, không dùng để chẩn đoán.',
+  },
+  {
+    id: 'personalized-error-review-16',
+    title: 'Ôn lỗi hay gặp của con',
+    level: 4,
+    estimatedMinutes: 6,
+    targetSkills: ['word_reading', 'comprehension'],
+    targetPattern: {
+      contrastSet: ['từ khó', 'dấu/vần cần ôn'],
+      regionSensitive: true,
+    },
+    prerequisiteLessonIds: [],
+    tasks: [
+      {
+        id: 'personalized-review-task',
+        type: 'personalized_review',
+        promptText: 'Ôn lại các từ hoặc nhóm lỗi con hay gặp gần đây.',
+        fallbackItems: ['lá', 'lạ', 'nghe', 'an/ang'],
+        instruction: 'Chạm từng mục để nghe mẫu, rồi đọc lại thật chậm.',
+      },
+      {
+        id: 'personalized-review-sentence',
+        type: 'read_sentence',
+        sentence: 'Con đọc lại từ khó thật chậm.',
+        instruction: 'Đọc câu ngắn sau khi ôn từ khó.',
+      },
+      {
+        id: 'personalized-review-comprehension',
+        type: 'comprehension',
+        question: 'Khi gặp từ khó, con nên làm gì?',
+        options: ['Nghe mẫu rồi đọc chậm', 'Bỏ qua luôn', 'Đọc thật nhanh'],
+        answer: 'Nghe mẫu rồi đọc chậm',
+        instruction: 'Chọn cách hỗ trợ nhẹ nhàng nhất.',
+      },
+    ],
+    mastery: {
+      minAccuracy: 0.75,
+      minAttempts: 1,
+      reviewAfterDays: [1, 3],
+    },
+    caregiverTip: 'Ưu tiên 3-5 từ hay lỗi nhất, không ôn quá nhiều trong một lượt.',
+    safetyNote: 'Phần ôn cá nhân hóa chỉ dựa trên dữ liệu luyện tập trong app, không phải chẩn đoán.',
+  },
+];
+
+const allStructuredLessons = [...structuredLessonData, ...supplementalStructuredLessons];
+
+export const curriculumLessons: Lesson[] = [
+  ...allStructuredLessons.map(structuredLessonToLegacyLesson),
+  ...baseLessons.map((lesson, index) => ({
+    ...lesson,
+    order: allStructuredLessons.length + index,
+  })),
+];
+
 export const initialLearnerRecords: LearnerRecord[] = [
   {
     profile: {
       id: 'an',
       name: 'Bé An',
       age: 8,
+      region: 'north',
       readingLevel: 'Đang củng cố câu ngắn 2-3 dòng',
       weeklyGoal: 5,
       streakDays: 4,
@@ -271,6 +615,7 @@ export const initialLearnerRecords: LearnerRecord[] = [
       id: 'mai',
       name: 'Bé Mai',
       age: 9,
+      region: 'south',
       readingLevel: 'Đang luyện tốc độ với đoạn quen thuộc',
       weeklyGoal: 4,
       streakDays: 2,
@@ -395,12 +740,12 @@ export const hciChecklistGroups: HciChecklistGroup[] = [
     ],
   },
   {
-    title: 'Kế hoạch usability test',
+    title: 'Usability test và kết quả cần ghi',
     items: [
       'Người tham gia: 5-10 phụ huynh, giáo viên hoặc người dùng đại diện.',
       'Nhiệm vụ: mở app, bắt đầu bài gợi ý, đánh dấu từ khó, nghe mẫu và xem tiến độ.',
       'Chỉ số: thời gian hoàn thành, số lần chạm nhầm, mức cần trợ giúp, mức hài lòng.',
-      'Câu hỏi hậu kiểm: chữ đã đủ dễ đọc chưa, luồng có dễ hiểu không, báo cáo có đủ rõ không.',
+      'Kết quả: điền task completion, điểm 1-5 và quan sát vào docs/hci/usability-test-results.md.',
     ],
   },
 ];

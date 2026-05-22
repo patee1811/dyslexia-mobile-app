@@ -1,4 +1,5 @@
 import { Directory, File, Paths } from 'expo-file-system';
+import { Platform } from 'react-native';
 
 type AzureTtsMode = 'word' | 'sentence';
 
@@ -57,12 +58,17 @@ export async function synthesizeAzureSpeechToFile({
   region,
   voice,
 }: AzureSynthesizeOptions): Promise<string> {
-  const cacheDir = getTtsCacheDir();
-  const cacheKey = hashText(`${voice}|${mode}|${text}`);
-  const cachedFile = new File(cacheDir, `${cacheKey}.mp3`);
+  const isWeb = Platform.OS === 'web';
+  let cachedFile: File | null = null;
 
-  if (cachedFile.exists) {
-    return cachedFile.uri;
+  if (!isWeb) {
+    const cacheDir = getTtsCacheDir();
+    const cacheKey = hashText(`${voice}|${mode}|${text}`);
+    cachedFile = new File(cacheDir, `${cacheKey}.mp3`);
+
+    if (cachedFile.exists) {
+      return cachedFile.uri;
+    }
   }
 
   const endpoint = `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`;
@@ -83,8 +89,14 @@ export async function synthesizeAzureSpeechToFile({
   }
 
   const audioBuffer = await response.arrayBuffer();
-  cachedFile.create({ intermediates: true, overwrite: true });
-  cachedFile.write(new Uint8Array(audioBuffer));
 
-  return cachedFile.uri;
+  if (isWeb) {
+    const blob = new Blob([audioBuffer as unknown as Blob], { type: 'audio/mp3', lastModified: Date.now() });
+    return URL.createObjectURL(blob);
+  }
+
+  cachedFile!.create({ intermediates: true, overwrite: true });
+  cachedFile!.write(new Uint8Array(audioBuffer));
+
+  return cachedFile!.uri;
 }

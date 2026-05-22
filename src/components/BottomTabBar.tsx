@@ -9,6 +9,7 @@ const tabs: { key: AppTab; label: string; shortLabel: string }[] = [
   { key: 'caregiver', label: 'Theo dõi', shortLabel: '03' },
   { key: 'hci', label: 'HCI', shortLabel: '04' },
   { key: 'settings', label: 'Cài đặt', shortLabel: '05' },
+  { key: 'privacy', label: 'Riêng tư', shortLabel: '06' },
 ];
 
 type Props = {

@@ -18,13 +18,28 @@ export default function HciScreen() {
           1. Đối tượng cụ thể: trẻ 7-10 tuổi cần hỗ trợ luyện đọc, cùng phụ huynh và giáo viên theo dõi.
         </Text>
         <Text style={[styles.body, { color: currentTheme.text }]}>
-          2. Quy trình HCI: persona, scenario, thiết kế luồng, phát triển app, chuẩn bị usability test.
+          2. Quy trình HCI: nghiên cứu nhu cầu, persona, scenario, thiết kế luồng, phát triển app và usability test.
         </Text>
         <Text style={[styles.body, { color: currentTheme.text }]}>
           3. Cơ chế nổi bật: adaptive interaction, text-to-speech, lưu cục bộ theo hồ sơ và analytics mức cơ bản.
         </Text>
         <Text style={[styles.body, { color: currentTheme.accent }]}>
           4. Phạm vi an toàn: chỉ hỗ trợ luyện đọc, không tuyên bố chẩn đoán hay can thiệp chuyên môn.
+        </Text>
+      </SectionCard>
+
+      <SectionCard title="Minh chứng HCI cần nộp" style={{ backgroundColor: currentTheme.surface, borderColor: currentTheme.border }}>
+        <Text style={[styles.body, { color: currentTheme.text }]}>
+          • Nghiên cứu nhu cầu: `docs/hci/user-research-summary.md`.
+        </Text>
+        <Text style={[styles.body, { color: currentTheme.text }]}>
+          • Persona/scenario: `docs/hci/persona.md` và `docs/hci/scenario.md`.
+        </Text>
+        <Text style={[styles.body, { color: currentTheme.text }]}>
+          • Kế hoạch/form test: `docs/hci/usability-test-plan.md` và `docs/hci/usability-test-form.md`.
+        </Text>
+        <Text style={[styles.body, { color: currentTheme.accent }]}>
+          • Kết quả test cần điền sau khi chạy 5-10 người: `docs/hci/usability-test-results.md`.
         </Text>
       </SectionCard>
 
