@@ -14,6 +14,7 @@
 
 ## 3. Nghiên cứu nhu cầu
 
+- Tham chiếu `docs/hci/user-research-summary.md`.
 - Phỏng vấn/quan sát phụ huynh, trẻ hoặc người dùng đại diện.
 - Tổng hợp nhu cầu: chữ dễ đọc, nghe lại từ/câu, bài ngắn, dashboard hành động.
 - Ràng buộc đạo đức: không gắn nhãn trẻ, không thu dữ liệu quá mức.
@@ -56,6 +57,7 @@
 
 ## 9. Usability test
 
+- Tham chiếu `docs/hci/usability-test-results.md` sau khi điền dữ liệu test.
 - Kế hoạch test 5-10 người.
 - Task chính: chọn hồ sơ, bắt đầu bài, nghe lại, hoàn thành câu hỏi, xem dashboard, tìm bài gợi ý.
 - Metric: completion rate, lỗi thao tác, thời gian, dễ dùng 1-5, dễ đọc 1-5, thoải mái 1-5.

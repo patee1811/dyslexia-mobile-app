@@ -740,12 +740,12 @@ export const hciChecklistGroups: HciChecklistGroup[] = [
     ],
   },
   {
-    title: 'Kế hoạch usability test',
+    title: 'Usability test và kết quả cần ghi',
     items: [
       'Người tham gia: 5-10 phụ huynh, giáo viên hoặc người dùng đại diện.',
       'Nhiệm vụ: mở app, bắt đầu bài gợi ý, đánh dấu từ khó, nghe mẫu và xem tiến độ.',
       'Chỉ số: thời gian hoàn thành, số lần chạm nhầm, mức cần trợ giúp, mức hài lòng.',
-      'Câu hỏi hậu kiểm: chữ đã đủ dễ đọc chưa, luồng có dễ hiểu không, báo cáo có đủ rõ không.',
+      'Kết quả: điền task completion, điểm 1-5 và quan sát vào docs/hci/usability-test-results.md.',
     ],
   },
 ];
